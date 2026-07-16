@@ -1,0 +1,102 @@
+# Contexto del Proyecto — Fauna Cotizaciones (Agencia Fauna)
+
+> Generado el 2026-07-16. Punto de partida para nuevas sesiones de Claude Code.
+
+---
+
+## 1. Descripción General
+
+**Fauna Cotizaciones** es la app interna de Agencia Fauna (agencia de BTL/marketing) para gestionar cotizaciones/proyectos y su facturación. Reemplaza la planilla `PROYECTOS AGENCIA FAUNA.xlsx` (hoja "PARA CLAUDE"). Nace como hermana de **VíaCorp Budget App** (`~/Desktop/Claude/viacorp-budget`), reutilizando el mismo stack y patrones de arquitectura.
+
+Diseño de referencia (handoff de Claude Design): `~/Desktop/EMPRESAS/AGENCIA FAUNA/Información Sistema/design_handoff_fauna_cotizaciones/` — contiene `README.md`, `field-reference.md` y `sample-data.json` con el spec completo (colores, tipografía, reglas de negocio). Ante cualquier duda de comportamiento/diseño, esos archivos son la fuente de verdad.
+
+- **Repositorio GitHub:** https://github.com/Alvarorinno/AgenciaFauna
+- **Stack:** Node 24 + Express + `node:sqlite` (backend) · React 18 + TypeScript + Vite + Tailwind (frontend)
+- **Puertos dev:** backend 3001, frontend 5173 (proxy `/api` → 3001 vía `vite.config.ts`)
+
+---
+
+## 2. Estructura del Proyecto
+
+```
+AgenciaFauna/
+├── server/
+│   ├── index.js            # Express app, sirve /api y (en prod) el build del client
+│   ├── db.js                # node:sqlite — schema, usuarios demo, auto-seed
+│   └── routes/
+│       ├── auth.js          # /api/auth/login (JWT) + authMiddleware
+│       ├── cotizaciones.js  # CRUD con permisos por rol (server-side)
+│       └── stats.js         # Agregados para el Dashboard
+├── scripts/
+│   └── fauna_seed.json      # 10 filas semilla (desde sample-data.json del handoff)
+├── client/
+│   └── src/
+│       ├── context/AuthContext.tsx
+│       ├── components/{Layout,StatCard,BarList}.tsx
+│       └── pages/{Login,Dashboard,Eventos}.tsx
+├── railway.json
+└── package.json             # scripts raíz (build/start/dev/seed)
+```
+
+---
+
+## 3. Roles y Usuarios Demo
+
+Password para los 3: `fauna2026` (cambiar via env vars `ENCARGADO_PASS` / `FINANZAS_PASS` / `DIRECTOR_PASS` en producción).
+
+| Usuario | role (interno) | Nombre mostrado | Puede editar |
+|---|---|---|---|
+| `encargado` | `encargado` | Javiera Soto | Columnas de cuenta (8 campos) |
+| `finanzas` | `finanzas` | Jefe de Finanzas | Columnas de Finanzas (4 campos) |
+| `director` | `todos` | Dirección | Ambas secciones |
+
+El gating de permisos está **duplicado a propósito**: en la UI (`Eventos.tsx`, dimming al 40% + `pointer-events:none` de la sección no editable) y en el servidor (`routes/cotizaciones.js`, filtra campos permitidos por `req.user.role` antes del UPDATE). No confiar solo en la UI.
+
+---
+
+## 4. Modelo de Datos (`cotizaciones`)
+
+Columnas de **Encargado** (owner: `encargado`/`todos`): `n_cot, mes, a_cargo, cliente, proyecto, descripcion, costo_cliente, costo_real`.
+
+Columnas **Calculado** (derivadas, nunca editables, no se persisten aparte — se calculan en cada request):
+- `utilidad = costo_cliente - costo_real`
+- `pct_utilidad = utilidad / costo_cliente * 100` (1 decimal, guard div-by-zero → 0.0)
+
+Columnas de **Finanzas** (owner: `finanzas`/`todos`): `factura, fecha_factura, mes_factura, estado_pago` (`pagado` | `saldo` | `na`).
+
+Meses: `['enero',...,'diciembre']` (minúsculas, sin tildes) — igual en selects, filtros y agregados del dashboard.
+
+---
+
+## 5. Diferencias con VíaCorp Budget (por si se comparan)
+
+- VíaCorp usa roles `director/finanzas/viewer`; Fauna usa `encargado/finanzas/todos` (nombres distintos, misma idea de permisos server-side).
+- Fauna no tiene módulo de "Presupuesto" real — el ítem de nav "Presupuesto MO" está deshabilitado a propósito (placeholder "PRONTO"), no construir hasta que se defina el alcance.
+- Paleta de marca propia "Tinta / Papel / Latón / Burdeos" (ver `client/tailwind.config.js`) en vez del azul genérico de VíaCorp.
+- Sin PDF/email de reportes todavía (VíaCorp sí tiene `report.js` + `resend`/`nodemailer`) — no implementado en Fauna por ahora.
+
+---
+
+## 6. Pendientes conocidos (del handoff, sección "Known gaps")
+
+- Sin autosave/undo ni manejo de conflictos multi-usuario simultáneo sobre la misma fila.
+- Sin paginación — confirmar volumen esperado de filas antes de necesitarla.
+- Reemplazar auth JWT hardcodeada por autenticación real antes de exponer la app fuera de la red interna.
+
+---
+
+## 7. Flujo de Deploy (mismo patrón que VíaCorp)
+
+```bash
+# Desarrollo
+cd server && npm run dev &
+cd client && npm run dev
+
+# Producción (Railway, ver railway.json)
+npm run build   # build del client + install del server
+npm start        # Express sirve API + client/dist
+```
+
+---
+
+*Fin del documento de contexto.*
