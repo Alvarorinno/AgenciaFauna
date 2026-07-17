@@ -11,7 +11,8 @@
 Diseño de referencia (handoff de Claude Design): `~/Desktop/EMPRESAS/AGENCIA FAUNA/Información Sistema/design_handoff_fauna_cotizaciones/` — contiene `README.md`, `field-reference.md` y `sample-data.json` con el spec completo (colores, tipografía, reglas de negocio). Ante cualquier duda de comportamiento/diseño, esos archivos son la fuente de verdad.
 
 - **Repositorio GitHub:** https://github.com/Alvarorinno/AgenciaFauna
-- **Stack:** Node 24 + Express + `node:sqlite` (backend) · React 18 + TypeScript + Vite + Tailwind (frontend)
+- **Stack:** Node 24 + Express + `@neondatabase/serverless` (Postgres/Neon, backend) · React 18 + TypeScript + Vite + Tailwind (frontend)
+- **Deploy:** Vercel (serverless functions + estáticos), base de datos Postgres vía Vercel Postgres/Neon. Migrado desde Railway + `node:sqlite` — ver sección 7.
 - **Puertos dev:** backend 3001, frontend 5173 (proxy `/api` → 3001 vía `vite.config.ts`)
 
 ---
@@ -20,9 +21,12 @@ Diseño de referencia (handoff de Claude Design): `~/Desktop/EMPRESAS/AGENCIA FA
 
 ```
 AgenciaFauna/
+├── api/
+│   └── index.js             # Entry point serverless de Vercel — re-exporta server/app.js
 ├── server/
-│   ├── index.js            # Express app, sirve /api y (en prod) el build del client
-│   ├── db.js                # node:sqlite — schema, usuarios demo, auto-seed
+│   ├── app.js                # Express app (routes, middleware, sin .listen) — usado por index.js y por api/index.js
+│   ├── index.js              # Solo dev local: importa app.js y hace .listen(PORT)
+│   ├── db.js                  # @neondatabase/serverless (Neon/Postgres) — schema, usuarios demo, auto-seed, initDb()
 │   └── routes/
 │       ├── auth.js          # /api/auth/login (JWT) + authMiddleware
 │       ├── cotizaciones.js  # CRUD con permisos por rol (server-side)
@@ -34,7 +38,8 @@ AgenciaFauna/
 │       ├── context/AuthContext.tsx
 │       ├── components/{Layout,StatCard,BarList}.tsx
 │       └── pages/{Login,Dashboard,Eventos}.tsx
-├── railway.json
+├── vercel.json               # buildCommand/outputDirectory + rewrite de /api/:path* → /api/index
+├── .env.example              # DATABASE_URL, JWT_SECRET, etc.
 └── package.json             # scripts raíz (build/start/dev/seed)
 ```
 
@@ -85,17 +90,33 @@ Meses: `['enero',...,'diciembre']` (minúsculas, sin tildes) — igual en select
 
 ---
 
-## 7. Flujo de Deploy (mismo patrón que VíaCorp)
+## 7. Flujo de Deploy — Vercel + Neon/Postgres
+
+Migrado desde Railway + `node:sqlite` (2026-07-16): Vercel serverless no tiene disco persistente, así que la BD pasó a Postgres (Vercel Postgres, backed by Neon) vía `@neondatabase/serverless`. `@vercel/postgres` está deprecado — se usa el driver nativo de Neon directo, que es la forma actual soportada.
 
 ```bash
-# Desarrollo
+# Desarrollo (igual que antes, requiere .env con DATABASE_URL apuntando a la BD de dev/preview)
 cd server && npm run dev &
 cd client && npm run dev
 
-# Producción (Railway, ver railway.json)
-npm run build   # build del client + install del server
-npm start        # Express sirve API + client/dist
+# Producción (Vercel)
+# El propio Vercel corre `npm run build` (build del client a client/dist + install de server/)
+# y despliega api/index.js como función serverless (ver vercel.json → rewrites /api/:path* → /api/index).
+# Los estáticos de client/dist los sirve Vercel directo, no pasan por Express.
 ```
+
+**Arquitectura del backend en Vercel:**
+- `server/app.js` contiene toda la app Express (sin `.listen()`), reutilizada tanto por `server/index.js` (dev local) como por `api/index.js` (función serverless de Vercel — el runtime de Node de Vercel acepta una app Express como handler `(req, res)` directamente).
+- `server/db.js` exporta `sql` (cliente `neon()` tageado-template) e `initDb()` (crea tablas si no existen + siembra usuarios demo + auto-seed de `fauna_seed.json` si la tabla está vacía). `app.js` hace `await initDb()` a nivel de módulo, una vez por cold start.
+- Variable de entorno requerida: `DATABASE_URL` (o `POSTGRES_URL`, alias legado de Vercel) — se configura en el dashboard de Vercel al conectar/crear la base de datos Postgres (Storage tab), y localmente vía `.env` (ver `.env.example`).
+
+**Setup manual pendiente (una sola vez, requiere acceso al dashboard de Vercel):**
+1. Crear un proyecto en Vercel enlazado al repo `github.com/Alvarorinno/AgenciaFauna`.
+2. Provisionar una base de datos Postgres (Storage → Postgres, Neon-backed) y conectarla al proyecto — esto puebla `DATABASE_URL`/`POSTGRES_URL` automáticamente en las env vars del proyecto.
+3. Verificar que `JWT_SECRET` y los `*_PASS` de usuarios demo estén seteados en producción (no depender de los defaults hardcodeados).
+4. Opcional para probar localmente contra la BD real: `npx vercel env pull` para traer las env vars al `.env` local.
+
+**Nota:** `viacorp-budget` (hermano de este proyecto, alias "MRTOM BTL") sigue en Railway + `node:sqlite` por ahora. El usuario planea migrarlo también a Vercel más adelante, como tarea aparte una vez que esta migración quede validada en producción.
 
 ---
 

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import db from '../db.js';
+import { sql } from '../db.js';
 import { authMiddleware } from './auth.js';
 
 const router = Router();
@@ -10,50 +10,52 @@ const ENCARGADO_FIELDS = ['n_cot', 'mes', 'a_cargo', 'cliente', 'proyecto', 'des
 const FINANCE_FIELDS = ['factura', 'fecha_factura', 'mes_factura', 'estado_pago'];
 
 function withDerived(row) {
-  const costoCliente = row.costo_cliente || 0;
-  const costoReal = row.costo_real || 0;
+  const costoCliente = Number(row.costo_cliente) || 0;
+  const costoReal = Number(row.costo_real) || 0;
   const utilidad = costoCliente - costoReal;
   const pctUtilidad = costoCliente === 0 ? 0 : Math.round((utilidad / costoCliente) * 1000) / 10;
-  return { ...row, utilidad, pct_utilidad: pctUtilidad };
+  return { ...row, costo_cliente: costoCliente, costo_real: costoReal, utilidad, pct_utilidad: pctUtilidad };
 }
 
-router.get('/', (req, res) => {
-  const rows = db.prepare('SELECT * FROM cotizaciones ORDER BY n_cot, id').all();
+router.get('/', async (req, res) => {
+  const rows = await sql`SELECT * FROM cotizaciones ORDER BY n_cot, id`;
   res.json(rows.map(withDerived));
 });
 
-router.post('/', (req, res) => {
+router.post('/', async (req, res) => {
   if (!['encargado', 'todos'].includes(req.user.role)) {
     return res.status(403).json({ error: 'Sin permiso para crear cotizaciones' });
   }
 
   let nCot = req.body.n_cot;
   if (nCot === undefined || nCot === null || nCot === '') {
-    const max = db.prepare('SELECT MAX(n_cot) as m FROM cotizaciones').get();
-    nCot = (max?.m || 0) + 1;
+    const [{ m }] = await sql`SELECT MAX(n_cot) as m FROM cotizaciones`;
+    nCot = (m || 0) + 1;
   }
 
-  const result = db.prepare(`
+  const rows = await sql`
     INSERT INTO cotizaciones (n_cot, mes, a_cargo, cliente, proyecto, descripcion, costo_cliente, costo_real, estado_pago)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'na')
-  `).run(
-    nCot,
-    req.body.mes ?? 'enero',
-    req.body.a_cargo ?? '',
-    req.body.cliente ?? '',
-    req.body.proyecto ?? '',
-    req.body.descripcion ?? '',
-    req.body.costo_cliente || 0,
-    req.body.costo_real || 0
-  );
+    VALUES (
+      ${nCot},
+      ${req.body.mes ?? 'enero'},
+      ${req.body.a_cargo ?? ''},
+      ${req.body.cliente ?? ''},
+      ${req.body.proyecto ?? ''},
+      ${req.body.descripcion ?? ''},
+      ${req.body.costo_cliente || 0},
+      ${req.body.costo_real || 0},
+      'na'
+    )
+    RETURNING *
+  `;
 
-  const row = db.prepare('SELECT * FROM cotizaciones WHERE id = ?').get(result.lastInsertRowid);
-  res.status(201).json(withDerived(row));
+  res.status(201).json(withDerived(rows[0]));
 });
 
-router.put('/:id', (req, res) => {
-  const row = db.prepare('SELECT * FROM cotizaciones WHERE id = ?').get(Number(req.params.id));
-  if (!row) return res.status(404).json({ error: 'Cotización no encontrada' });
+router.put('/:id', async (req, res) => {
+  const id = Number(req.params.id);
+  const existing = await sql`SELECT * FROM cotizaciones WHERE id = ${id}`;
+  if (!existing[0]) return res.status(404).json({ error: 'Cotización no encontrada' });
 
   const allowedFields =
     req.user.role === 'todos' ? [...ENCARGADO_FIELDS, ...FINANCE_FIELDS] :
@@ -67,19 +69,24 @@ router.put('/:id', (req, res) => {
 
   if (Object.keys(updates).length === 0) return res.status(400).json({ error: 'Sin campos para actualizar' });
 
-  const setClause = Object.keys(updates).map(k => `${k} = ?`).join(', ');
-  db.prepare(`UPDATE cotizaciones SET ${setClause}, updated_at = datetime('now') WHERE id = ?`)
-    .run(...Object.values(updates), Number(req.params.id));
+  const keys = Object.keys(updates);
+  const values = Object.values(updates);
+  const setClause = keys.map((k, i) => `${k} = $${i + 1}`).join(', ');
+  const idParamIndex = values.length + 1;
 
-  const updated = db.prepare('SELECT * FROM cotizaciones WHERE id = ?').get(Number(req.params.id));
-  res.json(withDerived(updated));
+  const updated = await sql.query(
+    `UPDATE cotizaciones SET ${setClause}, updated_at = now() WHERE id = $${idParamIndex} RETURNING *`,
+    [...values, id]
+  );
+
+  res.json(withDerived(updated[0]));
 });
 
-router.delete('/:id', (req, res) => {
+router.delete('/:id', async (req, res) => {
   if (!['encargado', 'todos'].includes(req.user.role)) {
     return res.status(403).json({ error: 'Sin permiso para eliminar cotizaciones' });
   }
-  db.prepare('DELETE FROM cotizaciones WHERE id = ?').run(Number(req.params.id));
+  await sql`DELETE FROM cotizaciones WHERE id = ${Number(req.params.id)}`;
   res.json({ ok: true });
 });
 

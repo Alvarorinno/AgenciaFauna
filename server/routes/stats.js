@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import db from '../db.js';
+import { sql } from '../db.js';
 import { authMiddleware } from './auth.js';
 
 const router = Router();
@@ -7,8 +7,8 @@ router.use(authMiddleware);
 
 const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
 
-router.get('/', (req, res) => {
-  const rows = db.prepare('SELECT * FROM cotizaciones').all();
+router.get('/', async (req, res) => {
+  const rows = await sql`SELECT * FROM cotizaciones`;
 
   let totalCotizado = 0;
   let totalUtilidad = 0;
@@ -18,8 +18,8 @@ router.get('/', (req, res) => {
   const porEstado = { pagado: { count: 0, monto: 0 }, saldo: { count: 0, monto: 0 }, na: { count: 0, monto: 0 } };
 
   for (const r of rows) {
-    const costoCliente = r.costo_cliente || 0;
-    const costoReal = r.costo_real || 0;
+    const costoCliente = Number(r.costo_cliente) || 0;
+    const costoReal = Number(r.costo_real) || 0;
     const utilidad = costoCliente - costoReal;
 
     totalCotizado += costoCliente;
