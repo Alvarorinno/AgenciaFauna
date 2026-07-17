@@ -1,32 +1,32 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { getCotizaciones, createCotizacion, updateCotizacion, deleteCotizacion } from '../api';
-import type { Cotizacion, EstadoPago } from '../types';
+import type { Cotizacion, EstadoCotizacion } from '../types';
 import { MESES } from '../types';
 import { formatCLP, capitalize } from '../utils';
 
 const ENCARGADO_FIELDS = ['n_cot', 'mes', 'a_cargo', 'cliente', 'proyecto', 'descripcion', 'costo_cliente', 'costo_real'] as const;
-const FINANCE_FIELDS = ['factura', 'fecha_factura', 'mes_factura', 'estado_pago'] as const;
 
-const ESTADO_BADGE: Record<EstadoPago, { label: string; bg: string; text: string }> = {
-  pagado: { label: 'Pagado', bg: '#e3ecdf', text: '#1f7a4d' },
-  saldo: { label: 'Saldo x Facturar', bg: '#faf0d7', text: '#8a6a1f' },
-  na: { label: '—', bg: '#eceae4', text: '#8a8f9c' }
+const ESTADO_COT_BADGE: Record<EstadoCotizacion, { label: string; bg: string; text: string }> = {
+  pendiente: { label: 'Pendiente', bg: '#faf0d7', text: '#8a6a1f' },
+  aprobado: { label: 'Aprobado', bg: '#e3ecdf', text: '#1f7a4d' },
+  rechazado: { label: 'Rechazado', bg: '#f6e4e6', text: '#6d2632' }
 };
 
-export default function Eventos() {
+export default function Cotizaciones() {
   const { user } = useAuth();
   const [rows, setRows] = useState<Cotizacion[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filters, setFilters] = useState({ mes: 'todos', cliente: 'todos', aCargo: 'todos', estadoPago: 'todos' });
+  const [filters, setFilters] = useState({ mes: 'todos', cliente: 'todos', aCargo: 'todos', estado: 'todos' });
 
-  const canEditEncargado = user?.role === 'encargado' || user?.role === 'todos';
-  const canEditFinanzas = user?.role === 'finanzas' || user?.role === 'todos';
-  const canDelete = user?.role === 'encargado' || user?.role === 'todos';
+  const canEdit = user?.role === 'encargado' || user?.role === 'todos';
 
   useEffect(() => {
     getCotizaciones()
-      .then(data => { setRows(data.filter(r => r.estado_cotizacion === 'aprobado')); setLoading(false); })
+      .then(data => {
+        setRows(data.filter(r => r.estado_cotizacion !== 'aprobado'));
+        setLoading(false);
+      })
       .catch(() => setLoading(false));
   }, []);
 
@@ -37,7 +37,7 @@ export default function Eventos() {
     (filters.mes === 'todos' || r.mes === filters.mes) &&
     (filters.cliente === 'todos' || r.cliente === filters.cliente) &&
     (filters.aCargo === 'todos' || r.a_cargo === filters.aCargo) &&
-    (filters.estadoPago === 'todos' || r.estado_pago === filters.estadoPago)
+    (filters.estado === 'todos' || r.estado_cotizacion === filters.estado)
   );
 
   function patchRow(id: number, patch: Partial<Cotizacion>) {
@@ -49,13 +49,8 @@ export default function Eventos() {
   }
 
   async function saveRow(row: Cotizacion) {
-    const fields = user?.role === 'todos'
-      ? [...ENCARGADO_FIELDS, ...FINANCE_FIELDS]
-      : user?.role === 'encargado' ? ENCARGADO_FIELDS
-      : user?.role === 'finanzas' ? FINANCE_FIELDS : [];
-
     const payload: Record<string, unknown> = {};
-    for (const f of fields) payload[f] = (row as unknown as Record<string, unknown>)[f];
+    for (const f of ENCARGADO_FIELDS) payload[f] = (row as unknown as Record<string, unknown>)[f];
 
     try {
       const updated = await updateCotizacion(row.id, payload);
@@ -72,23 +67,49 @@ export default function Eventos() {
   }
 
   async function handleAdd() {
-    const created = await createCotizacion({ mes: 'enero', estado_cotizacion: 'aprobado' });
+    const created = await createCotizacion({ mes: 'enero', estado_cotizacion: 'pendiente' });
     setRows(prev => [...prev, { ...created, editing: true }]);
+  }
+
+  async function handleAprobar(id: number) {
+    if (!window.confirm('¿Aprobar esta cotización? Pasará directamente a Eventos / Proyectos y saldrá de esta lista.')) return;
+    try {
+      await updateCotizacion(id, { estado_cotizacion: 'aprobado' });
+      setRows(prev => prev.filter(r => r.id !== id));
+    } catch {
+      alert('No se pudo aprobar la cotización.');
+    }
+  }
+
+  async function handleRechazar(id: number) {
+    try {
+      const updated = await updateCotizacion(id, { estado_cotizacion: 'rechazado' });
+      setRows(prev => prev.map(r => r.id === id ? { ...updated, editing: false } : r));
+    } catch {
+      alert('No se pudo rechazar la cotización.');
+    }
+  }
+
+  async function handleReactivar(id: number) {
+    try {
+      const updated = await updateCotizacion(id, { estado_cotizacion: 'pendiente' });
+      setRows(prev => prev.map(r => r.id === id ? { ...updated, editing: false } : r));
+    } catch {
+      alert('No se pudo reactivar la cotización.');
+    }
   }
 
   const dimStyle = (allowed: boolean): React.CSSProperties =>
     allowed ? {} : { opacity: 0.4, pointerEvents: 'none' };
 
   const inputStyle: React.CSSProperties = { width: '100%', padding: '5px 8px', border: '1px solid #dfd8c8', borderRadius: 6, fontSize: 13 };
-  const financeInputStyle: React.CSSProperties = { ...inputStyle, border: '1px solid #e8dcbd', background: '#faf3e2' };
 
   return (
     <div>
-      <h1 className="title-serif font-semibold" style={{ fontSize: 24, color: '#12192b' }}>Eventos / Proyectos</h1>
+      <h1 className="title-serif font-semibold" style={{ fontSize: 24, color: '#12192b' }}>Cotizaciones</h1>
       <p className="mb-5" style={{ fontSize: 13.5, color: '#5b5f6b' }}>
-        {user?.role === 'encargado' && 'Puedes editar los datos de cuenta; la sección Finanzas es de solo lectura.'}
-        {user?.role === 'finanzas' && 'Puedes editar la sección Finanzas; los datos de cuenta son de solo lectura.'}
-        {user?.role === 'todos' && 'Tienes acceso completo de edición a ambas secciones.'}
+        Pipeline de cotizaciones en revisión. Al aprobar una cotización, se mueve directamente a Eventos / Proyectos y sale de esta lista.
+        Las rechazadas quedan aquí y pueden reactivarse en cualquier momento.
       </p>
 
       {/* Filters */}
@@ -99,10 +120,10 @@ export default function Eventos() {
           options={['todos', ...clientes]} display={v => v === 'todos' ? 'Todos' : v} />
         <FilterSelect label="A Cargo" value={filters.aCargo} onChange={v => setFilters(f => ({ ...f, aCargo: v }))}
           options={['todos', ...aCargos]} display={v => v === 'todos' ? 'Todos' : v} />
-        <FilterSelect label="Estado de Pago" value={filters.estadoPago} onChange={v => setFilters(f => ({ ...f, estadoPago: v }))}
-          options={['todos', 'pagado', 'saldo', 'na']} display={v => v === 'todos' ? 'Todos' : ESTADO_BADGE[v as EstadoPago].label} />
+        <FilterSelect label="Estado" value={filters.estado} onChange={v => setFilters(f => ({ ...f, estado: v }))}
+          options={['todos', 'pendiente', 'rechazado']} display={v => v === 'todos' ? 'Todos' : ESTADO_COT_BADGE[v as EstadoCotizacion].label} />
 
-        {canEditEncargado && (
+        {canEdit && (
           <button
             onClick={handleAdd}
             className="ml-auto font-bold"
@@ -115,12 +136,12 @@ export default function Eventos() {
 
       {/* Table */}
       <div className="bg-white overflow-x-auto" style={{ border: '1px solid #dfd8c8', borderRadius: 12 }}>
-        <table style={{ minWidth: 1540, width: '100%', borderCollapse: 'collapse' }}>
+        <table style={{ minWidth: 1300, width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr>
               <th colSpan={8} style={groupHeaderStyle('#f7f4ee', '#12192b')}>Encargado de Cuenta</th>
               <th colSpan={2} style={groupHeaderStyle('#efe9df', '#12192b')}>Calculado</th>
-              <th colSpan={4} style={groupHeaderStyle('#f4e6c1', '#8a6a1f')}>Finanzas</th>
+              <th style={groupHeaderStyle('#f7f4ee', '#12192b')}></th>
               <th style={groupHeaderStyle('#f7f4ee', '#12192b')}></th>
             </tr>
             <tr>
@@ -129,63 +150,60 @@ export default function Eventos() {
               ))}
               <th style={colHeaderStyle}>Utilidad Total</th>
               <th style={colHeaderStyle}>% Utilidad</th>
-              {['Factura', 'Fecha Factura', 'Mes Factura', 'Estado Pago'].map(h => (
-                <th key={h} style={{ ...colHeaderStyle, color: '#8a6a1f' }}>{h}</th>
-              ))}
+              <th style={colHeaderStyle}>Estado</th>
               <th style={colHeaderStyle}>Acciones</th>
             </tr>
           </thead>
           <tbody>
-            {loading && <tr><td colSpan={15} style={{ padding: 24, textAlign: 'center', color: '#9aa0ad' }}>Cargando…</td></tr>}
+            {loading && <tr><td colSpan={12} style={{ padding: 24, textAlign: 'center', color: '#9aa0ad' }}>Cargando…</td></tr>}
             {!loading && filteredRows.length === 0 && (
-              <tr><td colSpan={15} style={{ padding: 24, textAlign: 'center', color: '#9aa0ad' }}>No hay cotizaciones con estos filtros.</td></tr>
+              <tr><td colSpan={12} style={{ padding: 24, textAlign: 'center', color: '#9aa0ad' }}>No hay cotizaciones con estos filtros.</td></tr>
             )}
             {filteredRows.map(row => {
-              const badge = ESTADO_BADGE[row.estado_pago ?? 'na'];
+              const badge = ESTADO_COT_BADGE[row.estado_cotizacion ?? 'pendiente'];
               return (
                 <tr key={row.id} style={{ borderTop: '1px solid #efe9df' }}>
-                  {/* Encargado section */}
-                  <td style={{ ...cellStyle, ...dimStyle(canEditEncargado) }}>
-                    {row.editing && canEditEncargado ? (
+                  <td style={{ ...cellStyle, ...dimStyle(canEdit) }}>
+                    {row.editing && canEdit ? (
                       <input type="number" style={inputStyle} value={row.n_cot} onChange={e => patchRow(row.id, { n_cot: Number(e.target.value) })} />
                     ) : row.n_cot}
                   </td>
-                  <td style={{ ...cellStyle, ...dimStyle(canEditEncargado) }}>
-                    {row.editing && canEditEncargado ? (
+                  <td style={{ ...cellStyle, ...dimStyle(canEdit) }}>
+                    {row.editing && canEdit ? (
                       <select style={inputStyle} value={row.mes} onChange={e => patchRow(row.id, { mes: e.target.value })}>
                         {MESES.map(m => <option key={m} value={m}>{capitalize(m)}</option>)}
                       </select>
                     ) : capitalize(row.mes)}
                   </td>
-                  <td style={{ ...cellStyle, ...dimStyle(canEditEncargado) }}>
-                    {row.editing && canEditEncargado ? (
+                  <td style={{ ...cellStyle, ...dimStyle(canEdit) }}>
+                    {row.editing && canEdit ? (
                       <input style={inputStyle} value={row.a_cargo} onChange={e => patchRow(row.id, { a_cargo: e.target.value })} />
                     ) : row.a_cargo}
                   </td>
-                  <td style={{ ...cellStyle, ...dimStyle(canEditEncargado) }}>
-                    {row.editing && canEditEncargado ? (
+                  <td style={{ ...cellStyle, ...dimStyle(canEdit) }}>
+                    {row.editing && canEdit ? (
                       <input style={inputStyle} value={row.cliente} onChange={e => patchRow(row.id, { cliente: e.target.value })} />
                     ) : row.cliente}
                   </td>
-                  <td style={{ ...cellStyle, ...dimStyle(canEditEncargado) }}>
-                    {row.editing && canEditEncargado ? (
+                  <td style={{ ...cellStyle, ...dimStyle(canEdit) }}>
+                    {row.editing && canEdit ? (
                       <input style={inputStyle} value={row.proyecto} onChange={e => patchRow(row.id, { proyecto: e.target.value })} />
                     ) : row.proyecto}
                   </td>
-                  <td style={{ ...cellStyle, ...dimStyle(canEditEncargado), maxWidth: 220 }}>
-                    {row.editing && canEditEncargado ? (
+                  <td style={{ ...cellStyle, ...dimStyle(canEdit), maxWidth: 220 }}>
+                    {row.editing && canEdit ? (
                       <textarea style={{ ...inputStyle, resize: 'vertical' }} rows={2} value={row.descripcion} onChange={e => patchRow(row.id, { descripcion: e.target.value })} />
                     ) : (
                       <span className="line-clamp-2 block" title={row.descripcion}>{row.descripcion}</span>
                     )}
                   </td>
-                  <td style={{ ...cellStyle, ...dimStyle(canEditEncargado) }}>
-                    {row.editing && canEditEncargado ? (
+                  <td style={{ ...cellStyle, ...dimStyle(canEdit) }}>
+                    {row.editing && canEdit ? (
                       <input type="number" style={inputStyle} value={row.costo_cliente} onChange={e => patchRow(row.id, { costo_cliente: Number(e.target.value) })} />
                     ) : formatCLP(row.costo_cliente)}
                   </td>
-                  <td style={{ ...cellStyle, ...dimStyle(canEditEncargado) }}>
-                    {row.editing && canEditEncargado ? (
+                  <td style={{ ...cellStyle, ...dimStyle(canEdit) }}>
+                    {row.editing && canEdit ? (
                       <input type="number" style={inputStyle} value={row.costo_real} onChange={e => patchRow(row.id, { costo_real: Number(e.target.value) })} />
                     ) : formatCLP(row.costo_real)}
                   </td>
@@ -198,50 +216,38 @@ export default function Eventos() {
                     {row.pct_utilidad.toFixed(1)}%
                   </td>
 
-                  {/* Finanzas section */}
-                  <td style={{ ...cellStyle, background: '#faf3e2', ...dimStyle(canEditFinanzas) }}>
-                    {row.editing && canEditFinanzas ? (
-                      <input style={financeInputStyle} value={row.factura ?? ''} onChange={e => patchRow(row.id, { factura: e.target.value })} />
-                    ) : (row.factura || '—')}
-                  </td>
-                  <td style={{ ...cellStyle, background: '#faf3e2', ...dimStyle(canEditFinanzas) }}>
-                    {row.editing && canEditFinanzas ? (
-                      <input type="date" style={financeInputStyle} value={row.fecha_factura ?? ''} onChange={e => patchRow(row.id, { fecha_factura: e.target.value })} />
-                    ) : (row.fecha_factura || '—')}
-                  </td>
-                  <td style={{ ...cellStyle, background: '#faf3e2', ...dimStyle(canEditFinanzas) }}>
-                    {row.editing && canEditFinanzas ? (
-                      <select style={financeInputStyle} value={row.mes_factura ?? ''} onChange={e => patchRow(row.id, { mes_factura: e.target.value })}>
-                        <option value="">—</option>
-                        {MESES.map(m => <option key={m} value={m}>{capitalize(m)}</option>)}
-                      </select>
-                    ) : (row.mes_factura ? capitalize(row.mes_factura) : '—')}
-                  </td>
-                  <td style={{ ...cellStyle, background: '#faf3e2', ...dimStyle(canEditFinanzas) }}>
-                    {row.editing && canEditFinanzas ? (
-                      <select style={financeInputStyle} value={row.estado_pago} onChange={e => patchRow(row.id, { estado_pago: e.target.value as EstadoPago })}>
-                        <option value="na">— sin aplicar</option>
-                        <option value="saldo">Saldo x Facturar</option>
-                        <option value="pagado">Pagado</option>
-                      </select>
-                    ) : (
-                      <span style={{ background: badge.bg, color: badge.text, padding: '3px 12px', borderRadius: 20, fontSize: 12.5, fontWeight: 600 }}>
-                        {badge.label}
-                      </span>
-                    )}
+                  {/* Estado */}
+                  <td style={cellStyle}>
+                    <span style={{ background: badge.bg, color: badge.text, padding: '3px 12px', borderRadius: 20, fontSize: 12.5, fontWeight: 600 }}>
+                      {badge.label}
+                    </span>
                   </td>
 
                   {/* Acciones */}
                   <td style={cellStyle}>
                     <div className="flex items-center gap-2">
+                      {canEdit && row.estado_cotizacion === 'pendiente' && (
+                        <>
+                          <button onClick={() => handleAprobar(row.id)} title="Aprobar"
+                            style={{ width: 30, height: 30, borderRadius: '50%', background: '#dcecdf', color: '#1f7a4d' }}>✓</button>
+                          <button onClick={() => handleRechazar(row.id)} title="Rechazar"
+                            style={{ width: 30, height: 30, borderRadius: '50%', background: '#f6e4e6', color: '#6d2632' }}>✕</button>
+                        </>
+                      )}
+                      {canEdit && row.estado_cotizacion === 'rechazado' && (
+                        <button onClick={() => handleReactivar(row.id)} title="Reactivar (volver a pendiente)"
+                          style={{ width: 30, height: 30, borderRadius: '50%', background: '#faf0d7', color: '#8a6a1f' }}>↺</button>
+                      )}
                       {row.editing ? (
                         <button onClick={() => saveRow(row)} title="Guardar"
                           style={{ width: 30, height: 30, borderRadius: '50%', background: '#dcecdf', color: '#1f7a4d' }}>✓</button>
                       ) : (
-                        <button onClick={() => toggleEdit(row)} title="Editar"
-                          style={{ width: 30, height: 30, borderRadius: '50%', background: '#e2e9f5', color: '#2c4a7c' }}>✎</button>
+                        canEdit && (
+                          <button onClick={() => toggleEdit(row)} title="Editar"
+                            style={{ width: 30, height: 30, borderRadius: '50%', background: '#e2e9f5', color: '#2c4a7c' }}>✎</button>
+                        )
                       )}
-                      {canDelete && (
+                      {canEdit && (
                         <button onClick={() => handleDelete(row.id)} title="Eliminar"
                           style={{ width: 30, height: 30, borderRadius: '50%', background: '#f6e4e6', color: '#6d2632' }}>🗑</button>
                       )}

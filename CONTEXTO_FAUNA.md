@@ -32,12 +32,12 @@ AgenciaFauna/
 │       ├── cotizaciones.js  # CRUD con permisos por rol (server-side)
 │       └── stats.js         # Agregados para el Dashboard
 ├── scripts/
-│   └── fauna_seed.json      # 10 filas semilla (desde sample-data.json del handoff)
+│   └── fauna_seed.json      # 27 filas semilla reales (extraídas del Excel, ver sección 4)
 ├── client/
 │   └── src/
 │       ├── context/AuthContext.tsx
 │       ├── components/{Layout,StatCard,BarList}.tsx
-│       └── pages/{Login,Dashboard,Eventos}.tsx
+│       └── pages/{Login,Dashboard,Cotizaciones,Eventos}.tsx   # nav: Dashboard → Cotizaciones → Eventos/Proyectos
 ├── vercel.json               # buildCommand/outputDirectory + rewrite de /api/:path* → /api/index
 ├── .env.example              # DATABASE_URL, JWT_SECRET, etc.
 └── package.json             # scripts raíz (build/start/dev/seed)
@@ -70,6 +70,16 @@ Columnas **Calculado** (derivadas, nunca editables, no se persisten aparte — s
 Columnas de **Finanzas** (owner: `finanzas`/`todos`): `factura, fecha_factura, mes_factura, estado_pago` (`pagado` | `saldo` | `na`).
 
 Meses: `['enero',...,'diciembre']` (minúsculas, sin tildes) — igual en selects, filtros y agregados del dashboard.
+
+**Pipeline de cotizaciones** (`estado_cotizacion`, owner: `encargado`/`todos`, valores `pendiente` | `aprobado` | `rechazado`, default `pendiente` en creación):
+- Una misma tabla `cotizaciones` alimenta dos vistas filtradas en el cliente — no hay duplicación de filas entre "cotización" y "evento":
+  - **Cotizaciones** (`client/src/pages/Cotizaciones.tsx`): muestra solo `pendiente` + `rechazado`. Sin sección Finanzas (no aplica a algo que aún no se ejecuta). Botones Aprobar (✓) / Rechazar (✕) sobre filas `pendiente`; botón Reactivar (↺) sobre filas `rechazado` que vuelve a `pendiente`.
+  - **Eventos / Proyectos** (`client/src/pages/Eventos.tsx`): muestra solo `aprobado` (incluye Finanzas, como antes).
+  - El Dashboard (`server/routes/stats.js`) agrega solo filas `aprobado`.
+- Transición totalmente reversible: aprobar mueve la fila a Eventos/Proyectos (deja de aparecer en Cotizaciones); rechazar la deja visible en Cotizaciones (no se borra) para que la ejecutiva decida si sigue insistiendo o la reactiva más adelante.
+- El rol `finanzas` no ve el ítem de nav "Cotizaciones" (solo entra a Dashboard y Eventos/Proyectos, que son los que factura/cobra); el gating también es server-side vía `ENCARGADO_FIELDS` en `routes/cotizaciones.js` (igual patrón que el resto de los campos de encargado).
+- `n_cot` en creación: ninguna de las dos páginas calcula el siguiente número en el cliente — ambas omiten `n_cot` en el POST y dejan que el backend calcule `MAX(n_cot)` sobre toda la tabla (evita colisiones entre las dos vistas filtradas).
+- Migración de esquema (`server/db.js`, `initDb()`): `ADD COLUMN IF NOT EXISTS estado_cotizacion TEXT` (sin default) seguido de `UPDATE ... SET estado_cotizacion = 'aprobado' WHERE estado_cotizacion IS NULL` — así las filas ya existentes en producción (histórico real del Excel) quedan `aprobado` en vez de caer accidentalmente en `pendiente` por el fast-default de Postgres. El auto-seed (`fauna_seed.json`, tabla vacía) también inserta siempre con `estado_cotizacion = 'aprobado'`.
 
 ---
 

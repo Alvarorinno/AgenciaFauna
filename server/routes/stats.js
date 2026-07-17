@@ -8,7 +8,7 @@ router.use(authMiddleware);
 const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
 
 router.get('/', async (req, res) => {
-  const rows = await sql`SELECT * FROM cotizaciones`;
+  const rows = await sql`SELECT * FROM cotizaciones WHERE estado_cotizacion = 'aprobado'`;
 
   let totalCotizado = 0;
   let totalUtilidad = 0;

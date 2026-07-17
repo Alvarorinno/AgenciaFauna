@@ -2,6 +2,8 @@ export type Role = 'encargado' | 'finanzas' | 'todos';
 
 export type EstadoPago = 'pagado' | 'saldo' | 'na';
 
+export type EstadoCotizacion = 'pendiente' | 'aprobado' | 'rechazado';
+
 export interface Cotizacion {
   id: number;
   n_cot: number;
@@ -18,6 +20,7 @@ export interface Cotizacion {
   fecha_factura: string | null;
   mes_factura: string | null;
   estado_pago: EstadoPago;
+  estado_cotizacion: EstadoCotizacion;
   created_at: string;
   updated_at: string;
   editing?: boolean;

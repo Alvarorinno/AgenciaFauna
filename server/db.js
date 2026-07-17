@@ -30,10 +30,16 @@ async function runInit() {
       fecha_factura TEXT,
       mes_factura TEXT,
       estado_pago TEXT DEFAULT 'na',
+      estado_cotizacion TEXT DEFAULT 'pendiente',
       created_at TIMESTAMPTZ DEFAULT now(),
       updated_at TIMESTAMPTZ DEFAULT now()
     );
   `;
+
+  // Migración idempotente para bases ya existentes (sin default para no
+  // marcar erróneamente filas históricas ya aprobadas como 'pendiente').
+  await sql`ALTER TABLE cotizaciones ADD COLUMN IF NOT EXISTS estado_cotizacion TEXT`;
+  await sql`UPDATE cotizaciones SET estado_cotizacion = 'aprobado' WHERE estado_cotizacion IS NULL`;
 
   await sql`
     CREATE TABLE IF NOT EXISTS users (
@@ -71,10 +77,10 @@ async function runInit() {
       for (const r of data) {
         await sql`
           INSERT INTO cotizaciones
-            (n_cot, mes, a_cargo, cliente, proyecto, descripcion, costo_cliente, costo_real, factura, fecha_factura, mes_factura, estado_pago)
+            (n_cot, mes, a_cargo, cliente, proyecto, descripcion, costo_cliente, costo_real, factura, fecha_factura, mes_factura, estado_pago, estado_cotizacion)
           VALUES
             (${r.n_cot ?? null}, ${r.mes ?? null}, ${r.a_cargo ?? null}, ${r.cliente ?? null}, ${r.proyecto ?? null}, ${r.descripcion ?? null},
-             ${r.costo_cliente || 0}, ${r.costo_real || 0}, ${r.factura ?? null}, ${r.fecha_factura ?? null}, ${r.mes_factura ?? null}, ${r.estado_pago ?? 'na'})
+             ${r.costo_cliente || 0}, ${r.costo_real || 0}, ${r.factura ?? null}, ${r.fecha_factura ?? null}, ${r.mes_factura ?? null}, ${r.estado_pago ?? 'na'}, ${'aprobado'})
         `;
       }
       console.log(`✓ Auto-seed: ${data.length} cotizaciones cargadas desde fauna_seed.json`);

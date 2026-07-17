@@ -1,7 +1,7 @@
 import { ReactNode } from 'react';
 import { useAuth } from '../context/AuthContext';
 
-type Page = 'dashboard' | 'eventos';
+type Page = 'dashboard' | 'cotizaciones' | 'eventos';
 
 interface Props {
   page: Page;
@@ -20,6 +20,7 @@ export default function Layout({ page, setPage, children }: Props) {
 
   const navItems: { id: Page; label: string; icon: string }[] = [
     { id: 'dashboard', label: 'Dashboard', icon: '▦' },
+    ...(user?.role === 'finanzas' ? [] : [{ id: 'cotizaciones' as Page, label: 'Cotizaciones', icon: '📝' }]),
     { id: 'eventos', label: 'Eventos / Proyectos', icon: '▤' }
   ];
 

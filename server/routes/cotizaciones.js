@@ -6,7 +6,7 @@ const router = Router();
 router.use(authMiddleware);
 
 // Campos editables por rol (server-side, no confiar solo en el gating de la UI)
-const ENCARGADO_FIELDS = ['n_cot', 'mes', 'a_cargo', 'cliente', 'proyecto', 'descripcion', 'costo_cliente', 'costo_real'];
+const ENCARGADO_FIELDS = ['n_cot', 'mes', 'a_cargo', 'cliente', 'proyecto', 'descripcion', 'costo_cliente', 'costo_real', 'estado_cotizacion'];
 const FINANCE_FIELDS = ['factura', 'fecha_factura', 'mes_factura', 'estado_pago'];
 
 function withDerived(row) {
@@ -33,8 +33,12 @@ router.post('/', async (req, res) => {
     nCot = (m || 0) + 1;
   }
 
+  const estadoCotizacion = ['pendiente', 'aprobado', 'rechazado'].includes(req.body.estado_cotizacion)
+    ? req.body.estado_cotizacion
+    : 'pendiente';
+
   const rows = await sql`
-    INSERT INTO cotizaciones (n_cot, mes, a_cargo, cliente, proyecto, descripcion, costo_cliente, costo_real, estado_pago)
+    INSERT INTO cotizaciones (n_cot, mes, a_cargo, cliente, proyecto, descripcion, costo_cliente, costo_real, estado_pago, estado_cotizacion)
     VALUES (
       ${nCot},
       ${req.body.mes ?? 'enero'},
@@ -44,7 +48,8 @@ router.post('/', async (req, res) => {
       ${req.body.descripcion ?? ''},
       ${req.body.costo_cliente || 0},
       ${req.body.costo_real || 0},
-      'na'
+      'na',
+      ${estadoCotizacion}
     )
     RETURNING *
   `;
