@@ -45,6 +45,19 @@ function fmtCLP(n) {
   return '$ ' + Math.round(Number(n) || 0).toLocaleString('es-CL');
 }
 
+// Prefijo de línea de negocio para el número de cotización (RD = Fauna RD,
+// AF = Agencia), puramente visual para no confundir de un vistazo a qué línea
+// pertenece cada cotización/OC — ambas comparten la misma numeración global,
+// la información de la empresa emisora (Agencia Fauna SpA) es la misma en
+// ambos casos y no se discrimina por línea de negocio.
+function lineaPrefix(linea) {
+  return linea === 'agencia' ? 'AF' : 'RD';
+}
+
+function formatNCot(nCot, linea) {
+  return `${lineaPrefix(linea)}-${nCot}`;
+}
+
 // ================= GRUPOS =================
 
 router.post('/grupos', requireEncargado, async (req, res) => {
@@ -200,13 +213,13 @@ router.get('/cotizaciones/:id/pdf-cliente', async (req, res) => {
 
   const doc = new PDFDocument({ size: 'A4', margin: 40 });
   res.setHeader('Content-Type', 'application/pdf');
-  res.setHeader('Content-Disposition', `attachment; filename="cotizacion-${cot.n_cot || cot.id}.pdf"`);
+  res.setHeader('Content-Disposition', `attachment; filename="cotizacion-${formatNCot(cot.n_cot || cot.id, cot.linea_negocio)}.pdf"`);
   doc.pipe(res);
 
   drawHeader(doc, 'COTIZACIÓN');
 
   doc.fontSize(10).fillColor(COLORS.tinta);
-  doc.text(`N° Cotización: ${cot.n_cot ?? cot.id}`, 40, doc.y + 6);
+  doc.text(`N° Cotización: ${formatNCot(cot.n_cot ?? cot.id, cot.linea_negocio)}`, 40, doc.y + 6);
   doc.text(`Cliente: ${cot.cliente || '—'}`);
   doc.text(`Proyecto: ${cot.proyecto || '—'}`);
   if (cot.descripcion) doc.text(`Descripción: ${cot.descripcion}`);
@@ -272,7 +285,7 @@ router.get('/grupos/:id/pdf-oc', async (req, res) => {
   // N° de OC = N° de cotización + correlativo por orden de proveedor dentro de esa
   // cotización (1er grupo agregado = 001, 2do = 002, etc., según columna `orden`).
   const correlativo = String((Number(grupo.orden) || 0) + 1).padStart(3, '0');
-  const numeroOc = `${cot?.n_cot ?? cot?.id ?? '000'}-${correlativo}`;
+  const numeroOc = `${formatNCot(cot?.n_cot ?? cot?.id ?? '000', cot?.linea_negocio)}-${correlativo}`;
 
   const doc = new PDFDocument({ size: 'A4', margin: 40 });
   res.setHeader('Content-Type', 'application/pdf');
@@ -282,7 +295,7 @@ router.get('/grupos/:id/pdf-oc', async (req, res) => {
   drawHeader(doc, 'ORDEN DE COMPRA', `N° OC: ${numeroOc}`);
 
   doc.fontSize(10).fillColor(COLORS.tinta);
-  doc.text(`N° Cotización asociada: ${cot?.n_cot ?? cot?.id ?? '—'}`, 40, doc.y + 6);
+  doc.text(`N° Cotización asociada: ${cot ? formatNCot(cot.n_cot ?? cot.id, cot.linea_negocio) : '—'}`, 40, doc.y + 6);
   doc.text(`Proyecto: ${cot?.proyecto || '—'}`);
   doc.text(`Proveedor: ${grupo.proveedor || '—'}`);
   doc.text(`RUT Proveedor: ${grupo.rut_proveedor || '—'}`);

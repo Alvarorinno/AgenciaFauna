@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { getCotizaciones, createCotizacion, updateCotizacion, deleteCotizacion } from '../api';
 import type { Cotizacion, EstadoPago, LineaNegocio } from '../types';
 import { MESES } from '../types';
-import { formatCLP, capitalize } from '../utils';
+import { formatCLP, capitalize, formatNCot } from '../utils';
 import CotizacionDetalle from '../components/CotizacionDetalle';
 
 const ENCARGADO_FIELDS = ['n_cot', 'mes', 'a_cargo', 'cliente', 'proyecto', 'descripcion', 'costo_cliente', 'costo_real'] as const;
@@ -173,7 +173,7 @@ export default function Eventos({ linea }: { linea: LineaNegocio }) {
                   <td style={{ ...cellStyle, ...dimStyle(canEditEncargado) }}>
                     {row.editing && canEditEncargado ? (
                       <input type="number" style={inputStyle} value={row.n_cot} onChange={e => patchRow(row.id, { n_cot: Number(e.target.value) })} />
-                    ) : row.n_cot}
+                    ) : formatNCot(row.n_cot, row.linea_negocio)}
                   </td>
                   <td style={{ ...cellStyle, ...dimStyle(canEditEncargado) }}>
                     {row.editing && canEditEncargado ? (
