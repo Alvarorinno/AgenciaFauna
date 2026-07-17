@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import type { Cotizacion, CotizacionGrupo, CotizacionItem } from '../types';
 import {
   createGrupo, updateGrupo, deleteGrupo,
@@ -159,8 +159,8 @@ export default function CotizacionDetalle({ cotizacion, canEdit, onCotizacionUpd
         <p style={{ fontSize: 12.5, color: '#9aa0ad', padding: '10px 0' }}>Sin detalle de proveedores cargado todavía.</p>
       )}
 
-      {cotizacion.grupos.map(g => (
-        <div key={g.id} className="bg-white mb-3 overflow-x-auto" style={{ border: '1px solid #dfd8c8', borderRadius: 10 }}>
+      {cotizacion.grupos.length > 0 && (
+        <div className="bg-white mb-3 overflow-x-auto" style={{ border: '1px solid #dfd8c8', borderRadius: 10 }}>
           <table style={{ minWidth: 950, width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr>
@@ -183,98 +183,102 @@ export default function CotizacionDetalle({ cotizacion, canEdit, onCotizacionUpd
               </tr>
             </thead>
             <tbody>
-              {/* Fila de grupo (bold, totales) */}
-              <tr style={{ borderTop: '2px solid #dfd8c8', fontWeight: 700 }}>
-                <td colSpan={2} style={{ ...detCellStyle, background: CLIENTE_BG }}>
-                  {editingGrupoId === g.id ? (
-                    <input style={inputStyle} value={draftGrupo.nombre ?? ''} onChange={e => setDraftGrupo(d => ({ ...d, nombre: e.target.value }))} />
-                  ) : g.nombre}
-                </td>
-                <td style={{ ...detCellStyle, background: CLIENTE_BG }}></td>
-                <td style={{ ...detCellStyle, background: CLIENTE_BG, color: CLIENTE_TEXT }}>{formatCLP(g.subtotal_cliente)}</td>
-                <td style={{ ...detCellStyle, background: COSTO_BG }}></td>
-                <td style={{ ...detCellStyle, background: COSTO_BG, color: COSTO_TEXT }}>{formatCLP(g.subtotal_costo)}</td>
-                <td style={{ ...detCellStyle, background: COSTO_BG, color: g.utilidad >= 0 ? CLIENTE_TEXT : '#6d2632' }}>{formatCLP(g.utilidad)}</td>
-                <td style={{ ...detCellStyle, background: COSTO_BG, color: g.utilidad >= 0 ? CLIENTE_TEXT : '#6d2632' }}>{g.pct_utilidad.toFixed(1)}%</td>
-                <td style={{ ...detCellStyle, background: COSTO_BG }}>
-                  {editingGrupoId === g.id ? (
-                    <input style={inputStyle} value={draftGrupo.proveedor ?? ''} onChange={e => setDraftGrupo(d => ({ ...d, proveedor: e.target.value }))} placeholder="Proveedor" />
-                  ) : g.proveedor}
-                </td>
-                <td style={{ ...detCellStyle, background: COSTO_BG }}>
-                  {editingGrupoId === g.id ? (
-                    <input style={inputStyle} value={draftGrupo.rut_proveedor ?? ''} onChange={e => setDraftGrupo(d => ({ ...d, rut_proveedor: e.target.value }))} placeholder="RUT" />
-                  ) : g.rut_proveedor}
-                </td>
-                {canEdit && (
-                  <td style={detCellStyle}>
-                    <div className="flex items-center gap-1.5">
+              {cotizacion.grupos.map(g => (
+                <Fragment key={g.id}>
+                  {/* Fila de grupo (bold, totales) */}
+                  <tr style={{ borderTop: '2px solid #dfd8c8', fontWeight: 700 }}>
+                    <td colSpan={2} style={{ ...detCellStyle, background: CLIENTE_BG }}>
                       {editingGrupoId === g.id ? (
-                        <button onClick={() => saveGrupo(g.id)} title="Guardar" style={iconBtnStyle('#dcecdf', '#1f7a4d')}>✓</button>
-                      ) : (
-                        <button onClick={() => startEditGrupo(g)} title="Editar proveedor" style={iconBtnStyle('#e2e9f5', '#2c4a7c')}>✎</button>
-                      )}
-                      <button onClick={() => downloadGrupoOcPdf(g.id)} title="Descargar OC proveedor (PDF)" style={iconBtnStyle('#efe9df', '#12192b')}>📄</button>
-                      <button onClick={() => handleDeleteGrupo(g.id)} title="Eliminar grupo" style={iconBtnStyle('#f6e4e6', '#6d2632')}>🗑</button>
-                    </div>
-                  </td>
-                )}
-              </tr>
-
-              {/* Ítems */}
-              {g.items.map(it => (
-                <tr key={it.id} style={{ borderTop: '1px solid #efe9df' }}>
-                  <td style={detCellStyle}>
-                    {editingItemId === it.id ? (
-                      <input style={inputStyle} value={draftItem.nombre ?? ''} onChange={e => setDraftItem(d => ({ ...d, nombre: e.target.value }))} />
-                    ) : it.nombre}
-                  </td>
-                  <td style={detCellStyle}>
-                    {editingItemId === it.id ? (
-                      <input type="number" style={inputStyle} value={draftItem.cantidad ?? 0} onChange={e => setDraftItem(d => ({ ...d, cantidad: Number(e.target.value) }))} />
-                    ) : it.cantidad}
-                  </td>
-                  <td style={{ ...detCellStyle, background: CLIENTE_BG }}>
-                    {editingItemId === it.id ? (
-                      <input type="number" style={inputStyle} value={draftItem.unitario_cliente ?? 0} onChange={e => setDraftItem(d => ({ ...d, unitario_cliente: Number(e.target.value) }))} />
-                    ) : formatCLP(it.unitario_cliente)}
-                  </td>
-                  <td style={{ ...detCellStyle, background: CLIENTE_BG, color: CLIENTE_TEXT }}>{formatCLP(it.subtotal_cliente)}</td>
-                  <td style={{ ...detCellStyle, background: COSTO_BG }}>
-                    {editingItemId === it.id ? (
-                      <input type="number" style={inputStyle} value={draftItem.unitario_costo ?? 0} onChange={e => setDraftItem(d => ({ ...d, unitario_costo: Number(e.target.value) }))} />
-                    ) : formatCLP(it.unitario_costo)}
-                  </td>
-                  <td style={{ ...detCellStyle, background: COSTO_BG, color: COSTO_TEXT }}>{formatCLP(it.subtotal_costo)}</td>
-                  <td style={{ ...detCellStyle, background: COSTO_BG, color: it.utilidad >= 0 ? CLIENTE_TEXT : '#6d2632' }}>{formatCLP(it.utilidad)}</td>
-                  <td style={{ ...detCellStyle, background: COSTO_BG, color: it.utilidad >= 0 ? CLIENTE_TEXT : '#6d2632' }}>{it.pct_utilidad.toFixed(1)}%</td>
-                  <td colSpan={2} style={{ ...detCellStyle, background: COSTO_BG }}></td>
-                  {canEdit && (
-                    <td style={detCellStyle}>
-                      <div className="flex items-center gap-1.5">
-                        {editingItemId === it.id ? (
-                          <button onClick={() => saveItem(it.id)} title="Guardar" style={iconBtnStyle('#dcecdf', '#1f7a4d')}>✓</button>
-                        ) : (
-                          <button onClick={() => startEditItem(it)} title="Editar ítem" style={iconBtnStyle('#e2e9f5', '#2c4a7c')}>✎</button>
-                        )}
-                        <button onClick={() => handleDeleteItem(it.id)} title="Eliminar ítem" style={iconBtnStyle('#f6e4e6', '#6d2632')}>🗑</button>
-                      </div>
+                        <input style={inputStyle} value={draftGrupo.nombre ?? ''} onChange={e => setDraftGrupo(d => ({ ...d, nombre: e.target.value }))} />
+                      ) : g.nombre}
                     </td>
-                  )}
-                </tr>
-              ))}
+                    <td style={{ ...detCellStyle, background: CLIENTE_BG }}></td>
+                    <td style={{ ...detCellStyle, background: CLIENTE_BG, color: CLIENTE_TEXT }}>{formatCLP(g.subtotal_cliente)}</td>
+                    <td style={{ ...detCellStyle, background: COSTO_BG }}></td>
+                    <td style={{ ...detCellStyle, background: COSTO_BG, color: COSTO_TEXT }}>{formatCLP(g.subtotal_costo)}</td>
+                    <td style={{ ...detCellStyle, background: COSTO_BG, color: g.utilidad >= 0 ? CLIENTE_TEXT : '#6d2632' }}>{formatCLP(g.utilidad)}</td>
+                    <td style={{ ...detCellStyle, background: COSTO_BG, color: g.utilidad >= 0 ? CLIENTE_TEXT : '#6d2632' }}>{g.pct_utilidad.toFixed(1)}%</td>
+                    <td style={{ ...detCellStyle, background: COSTO_BG }}>
+                      {editingGrupoId === g.id ? (
+                        <input style={inputStyle} value={draftGrupo.proveedor ?? ''} onChange={e => setDraftGrupo(d => ({ ...d, proveedor: e.target.value }))} placeholder="Proveedor" />
+                      ) : g.proveedor}
+                    </td>
+                    <td style={{ ...detCellStyle, background: COSTO_BG }}>
+                      {editingGrupoId === g.id ? (
+                        <input style={inputStyle} value={draftGrupo.rut_proveedor ?? ''} onChange={e => setDraftGrupo(d => ({ ...d, rut_proveedor: e.target.value }))} placeholder="RUT" />
+                      ) : g.rut_proveedor}
+                    </td>
+                    {canEdit && (
+                      <td style={detCellStyle}>
+                        <div className="flex items-center gap-1.5">
+                          {editingGrupoId === g.id ? (
+                            <button onClick={() => saveGrupo(g.id)} title="Guardar" style={iconBtnStyle('#dcecdf', '#1f7a4d')}>✓</button>
+                          ) : (
+                            <button onClick={() => startEditGrupo(g)} title="Editar proveedor" style={iconBtnStyle('#e2e9f5', '#2c4a7c')}>✎</button>
+                          )}
+                          <button onClick={() => downloadGrupoOcPdf(g.id)} title="Descargar OC proveedor (PDF)" style={iconBtnStyle('#efe9df', '#12192b')}>📄</button>
+                          <button onClick={() => handleDeleteGrupo(g.id)} title="Eliminar grupo" style={iconBtnStyle('#f6e4e6', '#6d2632')}>🗑</button>
+                        </div>
+                      </td>
+                    )}
+                  </tr>
 
-              {canEdit && (
-                <tr style={{ borderTop: '1px solid #efe9df' }}>
-                  <td colSpan={11} style={{ padding: '6px 12px' }}>
-                    <button onClick={() => handleAddItem(g.id)} disabled={busy} style={{ fontSize: 12, color: '#2c4a7c', fontWeight: 600 }}>+ Agregar ítem</button>
-                  </td>
-                </tr>
-              )}
+                  {/* Ítems */}
+                  {g.items.map(it => (
+                    <tr key={it.id} style={{ borderTop: '1px solid #efe9df' }}>
+                      <td style={detCellStyle}>
+                        {editingItemId === it.id ? (
+                          <input style={inputStyle} value={draftItem.nombre ?? ''} onChange={e => setDraftItem(d => ({ ...d, nombre: e.target.value }))} />
+                        ) : it.nombre}
+                      </td>
+                      <td style={detCellStyle}>
+                        {editingItemId === it.id ? (
+                          <input type="number" style={inputStyle} value={draftItem.cantidad ?? 0} onChange={e => setDraftItem(d => ({ ...d, cantidad: Number(e.target.value) }))} />
+                        ) : it.cantidad}
+                      </td>
+                      <td style={{ ...detCellStyle, background: CLIENTE_BG }}>
+                        {editingItemId === it.id ? (
+                          <input type="number" style={inputStyle} value={draftItem.unitario_cliente ?? 0} onChange={e => setDraftItem(d => ({ ...d, unitario_cliente: Number(e.target.value) }))} />
+                        ) : formatCLP(it.unitario_cliente)}
+                      </td>
+                      <td style={{ ...detCellStyle, background: CLIENTE_BG, color: CLIENTE_TEXT }}>{formatCLP(it.subtotal_cliente)}</td>
+                      <td style={{ ...detCellStyle, background: COSTO_BG }}>
+                        {editingItemId === it.id ? (
+                          <input type="number" style={inputStyle} value={draftItem.unitario_costo ?? 0} onChange={e => setDraftItem(d => ({ ...d, unitario_costo: Number(e.target.value) }))} />
+                        ) : formatCLP(it.unitario_costo)}
+                      </td>
+                      <td style={{ ...detCellStyle, background: COSTO_BG, color: COSTO_TEXT }}>{formatCLP(it.subtotal_costo)}</td>
+                      <td style={{ ...detCellStyle, background: COSTO_BG, color: it.utilidad >= 0 ? CLIENTE_TEXT : '#6d2632' }}>{formatCLP(it.utilidad)}</td>
+                      <td style={{ ...detCellStyle, background: COSTO_BG, color: it.utilidad >= 0 ? CLIENTE_TEXT : '#6d2632' }}>{it.pct_utilidad.toFixed(1)}%</td>
+                      <td colSpan={2} style={{ ...detCellStyle, background: COSTO_BG }}></td>
+                      {canEdit && (
+                        <td style={detCellStyle}>
+                          <div className="flex items-center gap-1.5">
+                            {editingItemId === it.id ? (
+                              <button onClick={() => saveItem(it.id)} title="Guardar" style={iconBtnStyle('#dcecdf', '#1f7a4d')}>✓</button>
+                            ) : (
+                              <button onClick={() => startEditItem(it)} title="Editar ítem" style={iconBtnStyle('#e2e9f5', '#2c4a7c')}>✎</button>
+                            )}
+                            <button onClick={() => handleDeleteItem(it.id)} title="Eliminar ítem" style={iconBtnStyle('#f6e4e6', '#6d2632')}>🗑</button>
+                          </div>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+
+                  {canEdit && (
+                    <tr style={{ borderTop: '1px solid #efe9df' }}>
+                      <td colSpan={11} style={{ padding: '6px 12px' }}>
+                        <button onClick={() => handleAddItem(g.id)} disabled={busy} style={{ fontSize: 12, color: '#2c4a7c', fontWeight: 600 }}>+ Agregar ítem</button>
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
+              ))}
             </tbody>
           </table>
         </div>
-      ))}
+      )}
 
       {canEdit && cotizacion.grupos.length > 0 && (
         <button
