@@ -238,12 +238,17 @@ router.get('/grupos/:id/pdf-oc', async (req, res) => {
   const itemsRaw = await sql`SELECT * FROM cotizacion_items WHERE grupo_id = ${id} ORDER BY orden, id`;
   const items = itemsRaw.map(withItemDerived);
 
+  // N° de OC = N° de cotización + correlativo por orden de proveedor dentro de esa
+  // cotización (1er grupo agregado = 001, 2do = 002, etc., según columna `orden`).
+  const correlativo = String((Number(grupo.orden) || 0) + 1).padStart(3, '0');
+  const numeroOc = `${cot?.n_cot ?? cot?.id ?? '000'}-${correlativo}`;
+
   const doc = new PDFDocument({ size: 'A4', margin: 40 });
   res.setHeader('Content-Type', 'application/pdf');
-  res.setHeader('Content-Disposition', `attachment; filename="oc-${cot?.n_cot || cot?.id || ''}-${(grupo.proveedor || 'proveedor').replace(/[^a-z0-9]+/gi, '-')}.pdf"`);
+  res.setHeader('Content-Disposition', `attachment; filename="oc-${numeroOc}-${(grupo.proveedor || 'proveedor').replace(/[^a-z0-9]+/gi, '-')}.pdf"`);
   doc.pipe(res);
 
-  drawHeader(doc, 'ORDEN DE COMPRA');
+  drawHeader(doc, 'ORDEN DE COMPRA', `N° OC: ${numeroOc}`);
 
   doc.fontSize(10).fillColor(COLORS.tinta);
   doc.text(`N° Cotización asociada: ${cot?.n_cot ?? cot?.id ?? '—'}`, 40, doc.y + 6);
@@ -284,17 +289,25 @@ router.get('/grupos/:id/pdf-oc', async (req, res) => {
   doc.end();
 });
 
-function drawHeader(doc, title) {
+function drawHeader(doc, title, subtitle) {
   doc.fontSize(16).fillColor(COLORS.tinta).font('Helvetica-BoldOblique').text('Agencia Fauna', 40, 40);
   doc.font('Helvetica').fontSize(8.5).fillColor('#5b5f6b');
   doc.text(COMPANY.razonSocial);
   doc.text(`RUT: ${COMPANY.rut}`);
   doc.text(COMPANY.direccion);
   doc.text(COMPANY.email);
+  const leftBottomY = doc.y; // fin del bloque de datos de la empresa (columna izquierda)
 
   doc.fontSize(18).fillColor(COLORS.laton).font('Helvetica-Bold').text(title, 40, 40, { width: 515, align: 'right' });
+  if (subtitle) {
+    doc.fontSize(10).fillColor(COLORS.tinta).font('Helvetica-Bold').text(subtitle, 40, doc.y + 2, { width: 515, align: 'right' });
+  }
   doc.font('Helvetica');
 
+  // doc.text(..., 40, 40, ...) reposiciona el cursor en base a SU propia altura, que puede
+  // quedar más arriba que el bloque de la izquierda (5 líneas). Sin este máximo la línea
+  // separadora se dibuja encima del último renglón (el email) en vez de debajo de todo.
+  doc.y = Math.max(doc.y, leftBottomY);
   doc.moveDown(1.5);
   doc.moveTo(40, doc.y).lineTo(555, doc.y).strokeColor('#dfd8c8').lineWidth(1).stroke();
   doc.moveDown(0.8);
