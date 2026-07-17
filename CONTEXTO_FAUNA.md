@@ -13,6 +13,7 @@ Diseño de referencia (handoff de Claude Design): `~/Desktop/EMPRESAS/AGENCIA FA
 - **Repositorio GitHub:** https://github.com/Alvarorinno/AgenciaFauna
 - **Stack:** Node 24 + Express + `@neondatabase/serverless` (Postgres/Neon, backend) · React 18 + TypeScript + Vite + Tailwind (frontend)
 - **Deploy:** Vercel (serverless functions + estáticos), base de datos Postgres vía Vercel Postgres/Neon. Migrado desde Railway + `node:sqlite` — ver sección 7.
+- **URL de producción:** https://agenciafauna.mrtom.cl (dominio propio, ver sección 7). También responde en el dominio autogenerado de Vercel `https://agencia-fauna.vercel.app`.
 - **Puertos dev:** backend 3001, frontend 5173 (proxy `/api` → 3001 vía `vite.config.ts`)
 
 ---
@@ -127,6 +128,11 @@ cd client && npm run dev
 4. Opcional para probar localmente contra la BD real: `npx vercel env pull` para traer las env vars al `.env` local.
 
 **Nota:** `viacorp-budget` (hermano de este proyecto, alias "MRTOM BTL") sigue en Railway + `node:sqlite` por ahora. El usuario planea migrarlo también a Vercel más adelante, como tarea aparte una vez que esta migración quede validada en producción.
+
+**Dominio de producción (2026-07-17):** El dominio autogenerado por Vercel (`https://agencia-fauna.vercel.app`) no incluía "mrtom" en la URL, así que se agregó el dominio propio **`agenciafauna.mrtom.cl`** al proyecto `agencia-fauna` en Vercel (`vercel domains add agenciafauna.mrtom.cl agencia-fauna --scope mr-tom`).
+- `mrtom.cl` (dominio raíz, comprado fuera de Vercel pero con nameservers apuntando a `ns1/ns2.vercel-dns.com`) ya está tomado por otro proyecto (`mrtom-web`, el sitio principal de la empresa) — por eso se usó un **subdominio** (`agenciafauna.mrtom.cl`) en vez del path `mrtom.cl/agenciafauna`, que habría requerido rewrites cross-proyecto sobre `mrtom-web` con riesgo de romper el sitio principal.
+- Como el DNS de `mrtom.cl` ya vive en los nameservers de Vercel, el subdominio se configuró automáticamente al agregarlo — no requirió tocar registros DNS a mano.
+- Se probó y descartó primero un alias `*.vercel.app` (`mrtom-agenciafauna.vercel.app` vía `vercel alias set`): quedaba bloqueado por Vercel Deployment Protection (Vercel Authentication/SSO), porque solo el dominio de producción "oficial" del proyecto (`agencia-fauna.vercel.app`) está exento de esa protección. Los dominios propios agregados vía `vercel domains add` sí quedan exentos automáticamente, por eso se optó por el subdominio real en vez de forzar la excepción de protección (que es un ajuste de seguridad del proyecto).
 
 ---
 
