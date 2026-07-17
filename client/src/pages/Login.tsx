@@ -43,7 +43,6 @@ export default function Login() {
             </svg>
           </div>
           <h1 className="title-serif font-semibold text-ink" style={{ fontSize: 26 }}>Agencia Fauna</h1>
-          <p className="text-muted mt-1" style={{ fontSize: 13.5 }}>Cotizaciones BTL</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">

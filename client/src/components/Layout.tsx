@@ -44,7 +44,6 @@ export default function Layout({ page, setPage, children }: Props) {
             </div>
             <div>
               <h1 className="title-serif font-semibold" style={{ fontSize: 17 }}>Agencia Fauna</h1>
-              <p style={{ fontSize: 11, color: '#9aa0ad' }}>Cotizaciones BTL 2026</p>
             </div>
           </div>
         </div>
