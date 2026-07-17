@@ -30,16 +30,19 @@ AgenciaFauna/
 │   ├── app.js                # Express app (routes, middleware, sin .listen) — usado por index.js y por api/index.js
 │   ├── index.js              # Solo dev local: importa app.js y hace .listen(PORT)
 │   ├── db.js                  # @neondatabase/serverless (Neon/Postgres) — schema, usuarios demo, auto-seed, initDb()
+│   ├── lib/
+│   │   └── calc.js           # Cálculos derivados compartidos (utilidad/% cotización, ítem y grupo) + recomputeTotales()
 │   └── routes/
 │       ├── auth.js          # /api/auth/login (JWT) + authMiddleware
 │       ├── cotizaciones.js  # CRUD con permisos por rol (server-side)
+│       ├── detalle.js       # CRUD de grupos/ítems de proveedores + generación de los 2 PDFs (pdfkit)
 │       └── stats.js         # Agregados para el Dashboard
 ├── scripts/
 │   └── fauna_seed.json      # 27 filas semilla reales (extraídas del Excel, ver sección 4)
 ├── client/
 │   └── src/
 │       ├── context/AuthContext.tsx
-│       ├── components/{Layout,StatCard,BarList}.tsx
+│       ├── components/{Layout,StatCard,BarList,CotizacionDetalle}.tsx  # CotizacionDetalle: panel desplegable de detalle de proveedores
 │       └── pages/{Login,Dashboard,Cotizaciones,Eventos}.tsx   # nav: Dashboard → Cotizaciones → Eventos/Proyectos
 ├── vercel.json               # buildCommand/outputDirectory + rewrite de /api/:path* → /api/index
 ├── .env.example              # DATABASE_URL, JWT_SECRET, etc.
@@ -88,6 +91,26 @@ Meses: `['enero',...,'diciembre']` (minúsculas, sin tildes) — igual en select
 - `n_cot` en creación: ninguna de las dos páginas calcula el siguiente número en el cliente — ambas omiten `n_cot` en el POST y dejan que el backend calcule `MAX(n_cot)` sobre toda la tabla (evita colisiones entre las dos vistas filtradas).
 - Migración de esquema (`server/db.js`, `initDb()`): `ADD COLUMN IF NOT EXISTS estado_cotizacion TEXT` (sin default) seguido de `UPDATE ... SET estado_cotizacion = 'aprobado' WHERE estado_cotizacion IS NULL` — así las filas ya existentes en producción (histórico real del Excel) quedan `aprobado` en vez de caer accidentalmente en `pendiente` por el fast-default de Postgres. El auto-seed (`fauna_seed.json`, tabla vacía) también inserta siempre con `estado_cotizacion = 'aprobado'`.
 
+### 4.1 Detalle de proveedores por cotización (`cotizacion_grupos` / `cotizacion_items`) — 2026-07-17
+
+Cada cotización puede desplegarse (▸ en la primera columna, tanto en Cotizaciones como en Eventos/Proyectos — es la misma fila subyacente) para mostrar el detalle por proveedor, inspirado en la planilla original:
+
+- **`cotizacion_grupos`**: una partida por proveedor (ej. "ADHESIVO SERVICIO TÉCNICO"), con `nombre`, `proveedor`, `rut_proveedor`. `ON DELETE CASCADE` desde `cotizaciones`.
+- **`cotizacion_items`**: líneas dentro de un grupo — `nombre, cantidad, unidad, dias, unitario_cliente, unitario_costo`. `ON DELETE CASCADE` desde `cotizacion_grupos`. Subtotal = `cantidad × dias × unitario`.
+- Convención visual (pedida explícitamente por el usuario): **verde = de cara al cliente** (columnas Cliente: unitario/subtotal), **celeste = interno** (columnas Costo: unitario/subtotal/utilidad $/utilidad % + Proveedor/RUT). Mismos colores usados en `client/src/components/CotizacionDetalle.tsx` (`CLIENTE_BG/CLIENTE_TEXT` vs `COSTO_BG/COSTO_TEXT`).
+- **`costo_cliente`** y **`costo_real`** a nivel cotización dejan de ser editables a mano en cuanto la cotización tiene al menos un grupo: se recalculan automáticamente como la suma de `subtotal_cliente` (verde) y `subtotal_costo` (celeste) de todos los ítems de todos sus grupos — ver `recomputeTotales()` en `server/lib/calc.js`, y el flag `tiene_detalle` que expone el GET/POST/PUT de `/api/cotizaciones` para que la UI bloquee esos dos inputs. Si una cotización no tiene ningún grupo (como las 27 históricas del seed), sigue funcionando exactamente igual que antes (edición manual).
+- Igual patrón de permisos que el resto: solo `encargado` puede crear/editar/eliminar grupos e ítems (`requireEncargado` en `routes/detalle.js`, gateado también en el cliente vía la misma prop `canEdit`/`canEditEncargado` que ya usaban las páginas). Cualquier rol autenticado puede ver el detalle y descargar los PDFs (son de solo lectura).
+- Rutas: `POST/PUT/DELETE /api/detalle/grupos(/:id)`, `POST/PUT/DELETE /api/detalle/grupos/:id/items` y `/api/detalle/items/:id`. El GET de `/api/cotizaciones` ya viene con `grupos` anidados (no hay un GET aparte).
+
+### 4.2 Descargas PDF (pdfkit) — 2026-07-17
+
+Dos PDFs generados server-side con `pdfkit` (sin dependencias nativas, corre bien en la función serverless de Vercel), datos de la empresa hardcodeados en `COMPANY` (`server/routes/detalle.js`: Agencia Fauna SpA, RUT 77.897.540-1, Sebastian Piñera 548 Las Condes, francisca.sierralta@agenciafauna.com):
+
+1. **`GET /api/detalle/cotizaciones/:id/pdf-cliente`** — cotización completa para el cliente: resumen + detalle línea por línea de todos los grupos, con precios de venta (verde) únicamente. Nunca expone costo, utilidad ni el nombre del proveedor.
+2. **`GET /api/detalle/grupos/:id/pdf-oc`** — Orden de Compra para UN proveedor puntual (un grupo): solo sus ítems, con precio de costo (celeste) y el total a pagarle. Nunca expone el precio al cliente ni la utilidad.
+
+Botones de descarga en `CotizacionDetalle.tsx`: "📄 Cotización cliente (PDF)" a nivel de cotización (arriba del panel), "📄" por cada grupo (junto a editar/eliminar) para su OC. El botón de cotización-cliente se deshabilita si `tiene_detalle` es `false` (no hay nada que mostrar).
+
 ---
 
 ## 5. Diferencias con VíaCorp Budget (por si se comparan)
@@ -95,7 +118,7 @@ Meses: `['enero',...,'diciembre']` (minúsculas, sin tildes) — igual en select
 - VíaCorp usa roles `director/finanzas/viewer`; Fauna usa `encargado/finanzas/todos` (nombres distintos, misma idea de permisos server-side).
 - Fauna no tiene módulo de "Presupuesto" real — el ítem de nav "Presupuesto MO" está deshabilitado a propósito (placeholder "PRONTO"), no construir hasta que se defina el alcance.
 - Paleta de marca propia "Tinta / Papel / Latón / Burdeos" (ver `client/tailwind.config.js`) en vez del azul genérico de VíaCorp.
-- Sin PDF/email de reportes todavía (VíaCorp sí tiene `report.js` + `resend`/`nodemailer`) — no implementado en Fauna por ahora.
+- PDF sí implementado en Fauna (a diferencia de la nota anterior) — ver sección 4.2. Pero sin envío de email todavía (VíaCorp tiene `report.js` + `resend`/`nodemailer`, Fauna solo descarga directa).
 
 ---
 

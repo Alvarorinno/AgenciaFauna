@@ -4,6 +4,40 @@ export type EstadoPago = 'pagado' | 'saldo' | 'na';
 
 export type EstadoCotizacion = 'pendiente' | 'aprobado' | 'rechazado';
 
+// Ítem de detalle dentro de un grupo/proveedor (una línea: cantidad, unidad, días, precios).
+export interface CotizacionItem {
+  id: number;
+  grupo_id: number;
+  nombre: string;
+  cantidad: number;
+  unidad: string;
+  dias: number;
+  unitario_cliente: number;
+  unitario_costo: number;
+  subtotal_cliente: number;
+  subtotal_costo: number;
+  utilidad: number;
+  pct_utilidad: number;
+  orden: number;
+  editing?: boolean;
+}
+
+// Grupo/partida de proveedor (ej. "ADHESIVO SERVICIO TÉCNICO") con sus ítems.
+export interface CotizacionGrupo {
+  id: number;
+  cotizacion_id: number;
+  nombre: string;
+  proveedor: string;
+  rut_proveedor: string;
+  orden: number;
+  items: CotizacionItem[];
+  subtotal_cliente: number;
+  subtotal_costo: number;
+  utilidad: number;
+  pct_utilidad: number;
+  editing?: boolean;
+}
+
 export interface Cotizacion {
   id: number;
   n_cot: number;
@@ -24,6 +58,8 @@ export interface Cotizacion {
   created_at: string;
   updated_at: string;
   editing?: boolean;
+  grupos: CotizacionGrupo[];
+  tiene_detalle: boolean;
 }
 
 export interface User {

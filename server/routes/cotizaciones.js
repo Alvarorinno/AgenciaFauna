@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { sql } from '../db.js';
 import { authMiddleware } from './auth.js';
+import { withDerived, withItemDerived, withGrupoDerived } from '../lib/calc.js';
 
 const router = Router();
 router.use(authMiddleware);
@@ -9,17 +10,39 @@ router.use(authMiddleware);
 const ENCARGADO_FIELDS = ['n_cot', 'mes', 'a_cargo', 'cliente', 'proyecto', 'descripcion', 'costo_cliente', 'costo_real', 'estado_cotizacion'];
 const FINANCE_FIELDS = ['factura', 'fecha_factura', 'mes_factura', 'estado_pago'];
 
-function withDerived(row) {
-  const costoCliente = Number(row.costo_cliente) || 0;
-  const costoReal = Number(row.costo_real) || 0;
-  const utilidad = costoCliente - costoReal;
-  const pctUtilidad = costoCliente === 0 ? 0 : Math.round((utilidad / costoCliente) * 1000) / 10;
-  return { ...row, costo_cliente: costoCliente, costo_real: costoReal, utilidad, pct_utilidad: pctUtilidad };
+// Trae los grupos+ítems de UNA cotización (usado para que las respuestas de
+// POST/PUT incluyan grupos/tiene_detalle igual que el GET de la lista completa;
+// si no, el reemplazo de fila en el cliente borraría el detalle ya cargado).
+async function fetchGrupos(cotizacionId) {
+  const grupos = await sql`SELECT * FROM cotizacion_grupos WHERE cotizacion_id = ${cotizacionId} ORDER BY orden, id`;
+  const items = grupos.length
+    ? await sql`SELECT * FROM cotizacion_items WHERE grupo_id = ANY(${grupos.map(g => g.id)}) ORDER BY orden, id`
+    : [];
+  const itemsByGrupo = {};
+  for (const it of items) (itemsByGrupo[it.grupo_id] ??= []).push(withItemDerived(it));
+  return grupos.map(g => withGrupoDerived(g, itemsByGrupo[g.id] || []));
 }
 
 router.get('/', async (req, res) => {
   const rows = await sql`SELECT * FROM cotizaciones ORDER BY n_cot, id`;
-  res.json(rows.map(withDerived));
+  const grupos = await sql`SELECT * FROM cotizacion_grupos ORDER BY orden, id`;
+  const items = await sql`SELECT * FROM cotizacion_items ORDER BY orden, id`;
+
+  const itemsByGrupo = {};
+  for (const it of items) {
+    (itemsByGrupo[it.grupo_id] ??= []).push(withItemDerived(it));
+  }
+
+  const gruposByCot = {};
+  for (const g of grupos) {
+    const gItems = itemsByGrupo[g.id] || [];
+    (gruposByCot[g.cotizacion_id] ??= []).push(withGrupoDerived(g, gItems));
+  }
+
+  res.json(rows.map(r => {
+    const rGrupos = gruposByCot[r.id] || [];
+    return withDerived({ ...r, grupos: rGrupos, tiene_detalle: rGrupos.length > 0 });
+  }));
 });
 
 router.post('/', async (req, res) => {
@@ -55,7 +78,7 @@ router.post('/', async (req, res) => {
     RETURNING *
   `;
 
-  res.status(201).json(withDerived(rows[0]));
+  res.status(201).json(withDerived({ ...rows[0], grupos: [], tiene_detalle: false }));
 });
 
 router.put('/:id', async (req, res) => {
@@ -68,8 +91,16 @@ router.put('/:id', async (req, res) => {
     req.user.role === 'encargado' ? ENCARGADO_FIELDS :
     req.user.role === 'finanzas' ? FINANCE_FIELDS : [];
 
+  // Si la cotización ya tiene detalle de proveedores cargado (cotizacion_grupos),
+  // costo_cliente y costo_real se calculan automáticamente desde los ítems
+  // (ver recomputeTotales en lib/calc.js, disparado desde routes/detalle.js)
+  // y dejan de ser editables a mano, incluso si vienen en el payload.
+  const [{ n: gruposCount }] = await sql`SELECT COUNT(*)::int as n FROM cotizacion_grupos WHERE cotizacion_id = ${id}`;
+  const lockedFields = gruposCount > 0 ? ['costo_cliente', 'costo_real'] : [];
+
   const updates = {};
   for (const field of allowedFields) {
+    if (lockedFields.includes(field)) continue;
     if (req.body[field] !== undefined) updates[field] = req.body[field];
   }
 
@@ -85,7 +116,8 @@ router.put('/:id', async (req, res) => {
     [...values, id]
   );
 
-  res.json(withDerived(updated[0]));
+  const grupos = await fetchGrupos(id);
+  res.json(withDerived({ ...updated[0], grupos, tiene_detalle: grupos.length > 0 }));
 });
 
 router.delete('/:id', async (req, res) => {

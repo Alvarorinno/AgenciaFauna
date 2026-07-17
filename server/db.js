@@ -41,6 +41,39 @@ async function runInit() {
   await sql`ALTER TABLE cotizaciones ADD COLUMN IF NOT EXISTS estado_cotizacion TEXT`;
   await sql`UPDATE cotizaciones SET estado_cotizacion = 'aprobado' WHERE estado_cotizacion IS NULL`;
 
+  // Detalle de proveedores por cotización: grupos (una partida por proveedor,
+  // ej. "ADHESIVO SERVICIO TÉCNICO") con sus líneas de ítem (cantidad/unidad/días/precios).
+  // costo_cliente y costo_real a nivel cotización se recalculan como la suma de estos ítems
+  // en cuanto la cotización tiene al menos un grupo (ver recomputeTotales en lib/calc.js).
+  await sql`
+    CREATE TABLE IF NOT EXISTS cotizacion_grupos (
+      id SERIAL PRIMARY KEY,
+      cotizacion_id INTEGER NOT NULL REFERENCES cotizaciones(id) ON DELETE CASCADE,
+      nombre TEXT DEFAULT '',
+      proveedor TEXT DEFAULT '',
+      rut_proveedor TEXT DEFAULT '',
+      orden INTEGER DEFAULT 0,
+      created_at TIMESTAMPTZ DEFAULT now(),
+      updated_at TIMESTAMPTZ DEFAULT now()
+    );
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS cotizacion_items (
+      id SERIAL PRIMARY KEY,
+      grupo_id INTEGER NOT NULL REFERENCES cotizacion_grupos(id) ON DELETE CASCADE,
+      nombre TEXT DEFAULT '',
+      cantidad NUMERIC DEFAULT 1,
+      unidad TEXT DEFAULT 'Unidad',
+      dias NUMERIC DEFAULT 1,
+      unitario_cliente NUMERIC DEFAULT 0,
+      unitario_costo NUMERIC DEFAULT 0,
+      orden INTEGER DEFAULT 0,
+      created_at TIMESTAMPTZ DEFAULT now(),
+      updated_at TIMESTAMPTZ DEFAULT now()
+    );
+  `;
+
   await sql`
     CREATE TABLE IF NOT EXISTS users (
       id SERIAL PRIMARY KEY,

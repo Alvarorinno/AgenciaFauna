@@ -4,6 +4,7 @@ import { getCotizaciones, createCotizacion, updateCotizacion, deleteCotizacion }
 import type { Cotizacion, EstadoPago } from '../types';
 import { MESES } from '../types';
 import { formatCLP, capitalize } from '../utils';
+import CotizacionDetalle from '../components/CotizacionDetalle';
 
 const ENCARGADO_FIELDS = ['n_cot', 'mes', 'a_cargo', 'cliente', 'proyecto', 'descripcion', 'costo_cliente', 'costo_real'] as const;
 const FINANCE_FIELDS = ['factura', 'fecha_factura', 'mes_factura', 'estado_pago'] as const;
@@ -19,6 +20,15 @@ export default function Eventos() {
   const [rows, setRows] = useState<Cotizacion[]>([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({ mes: 'todos', cliente: 'todos', aCargo: 'todos', estadoPago: 'todos' });
+  const [expanded, setExpanded] = useState<Set<number>>(new Set());
+
+  function toggleExpanded(id: number) {
+    setExpanded(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
 
   // El rol 'todos' (Dirección) es de solo lectura: ve ambas secciones pero no edita nada.
   const canEditEncargado = user?.role === 'encargado';
@@ -117,12 +127,14 @@ export default function Eventos() {
         <table style={{ minWidth: 1540, width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr>
+              <th style={groupHeaderStyle('#f7f4ee', '#12192b')}></th>
               <th colSpan={8} style={groupHeaderStyle('#f7f4ee', '#12192b')}>Encargado de Cuenta</th>
               <th colSpan={2} style={groupHeaderStyle('#efe9df', '#12192b')}>Calculado</th>
               <th colSpan={4} style={groupHeaderStyle('#f4e6c1', '#8a6a1f')}>Finanzas</th>
               <th style={groupHeaderStyle('#f7f4ee', '#12192b')}></th>
             </tr>
             <tr>
+              <th style={colHeaderStyle}></th>
               {['Nº Cot.', 'Mes', 'A Cargo', 'Cliente', 'Proyecto', 'Descripción', 'Costo Cliente', 'Costo Real'].map(h => (
                 <th key={h} style={colHeaderStyle}>{h}</th>
               ))}
@@ -135,14 +147,22 @@ export default function Eventos() {
             </tr>
           </thead>
           <tbody>
-            {loading && <tr><td colSpan={15} style={{ padding: 24, textAlign: 'center', color: '#9aa0ad' }}>Cargando…</td></tr>}
+            {loading && <tr><td colSpan={16} style={{ padding: 24, textAlign: 'center', color: '#9aa0ad' }}>Cargando…</td></tr>}
             {!loading && filteredRows.length === 0 && (
-              <tr><td colSpan={15} style={{ padding: 24, textAlign: 'center', color: '#9aa0ad' }}>No hay cotizaciones con estos filtros.</td></tr>
+              <tr><td colSpan={16} style={{ padding: 24, textAlign: 'center', color: '#9aa0ad' }}>No hay cotizaciones con estos filtros.</td></tr>
             )}
             {filteredRows.map(row => {
               const badge = ESTADO_BADGE[row.estado_pago ?? 'na'];
+              const isExpanded = expanded.has(row.id);
               return (
+                <>
                 <tr key={row.id} style={{ borderTop: '1px solid #efe9df' }}>
+                  <td style={cellStyle}>
+                    <button onClick={() => toggleExpanded(row.id)} title="Ver detalle de proveedores"
+                      style={{ width: 22, height: 22, color: '#5b5f6b', fontSize: 11 }}>
+                      {isExpanded ? '▾' : '▸'}
+                    </button>
+                  </td>
                   {/* Encargado section */}
                   <td style={{ ...cellStyle, ...dimStyle(canEditEncargado) }}>
                     {row.editing && canEditEncargado ? (
@@ -178,13 +198,13 @@ export default function Eventos() {
                       <span className="line-clamp-2 block" title={row.descripcion}>{row.descripcion}</span>
                     )}
                   </td>
-                  <td style={{ ...cellStyle, ...dimStyle(canEditEncargado) }}>
-                    {row.editing && canEditEncargado ? (
+                  <td style={{ ...cellStyle, ...dimStyle(canEditEncargado) }} title={row.tiene_detalle ? 'Se calcula automáticamente desde el detalle de proveedores' : ''}>
+                    {row.editing && canEditEncargado && !row.tiene_detalle ? (
                       <input type="number" style={inputStyle} value={row.costo_cliente} onChange={e => patchRow(row.id, { costo_cliente: Number(e.target.value) })} />
                     ) : formatCLP(row.costo_cliente)}
                   </td>
-                  <td style={{ ...cellStyle, ...dimStyle(canEditEncargado) }}>
-                    {row.editing && canEditEncargado ? (
+                  <td style={{ ...cellStyle, ...dimStyle(canEditEncargado) }} title={row.tiene_detalle ? 'Se calcula automáticamente desde el detalle de proveedores' : ''}>
+                    {row.editing && canEditEncargado && !row.tiene_detalle ? (
                       <input type="number" style={inputStyle} value={row.costo_real} onChange={e => patchRow(row.id, { costo_real: Number(e.target.value) })} />
                     ) : formatCLP(row.costo_real)}
                   </td>
@@ -247,6 +267,18 @@ export default function Eventos() {
                     </div>
                   </td>
                 </tr>
+                {isExpanded && (
+                  <tr>
+                    <td colSpan={16} style={{ padding: 0, borderTop: '1px solid #dfd8c8' }}>
+                      <CotizacionDetalle
+                        cotizacion={row}
+                        canEdit={canEditEncargado}
+                        onCotizacionUpdated={updated => patchRow(updated.id, updated)}
+                      />
+                    </td>
+                  </tr>
+                )}
+                </>
               );
             })}
           </tbody>

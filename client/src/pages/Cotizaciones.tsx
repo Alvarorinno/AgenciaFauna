@@ -4,6 +4,7 @@ import { getCotizaciones, createCotizacion, updateCotizacion, deleteCotizacion }
 import type { Cotizacion, EstadoCotizacion } from '../types';
 import { MESES } from '../types';
 import { formatCLP, capitalize } from '../utils';
+import CotizacionDetalle from '../components/CotizacionDetalle';
 
 const ENCARGADO_FIELDS = ['n_cot', 'mes', 'a_cargo', 'cliente', 'proyecto', 'descripcion', 'costo_cliente', 'costo_real'] as const;
 
@@ -18,6 +19,15 @@ export default function Cotizaciones() {
   const [rows, setRows] = useState<Cotizacion[]>([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({ mes: 'todos', cliente: 'todos', aCargo: 'todos', estado: 'todos' });
+  const [expanded, setExpanded] = useState<Set<number>>(new Set());
+
+  function toggleExpanded(id: number) {
+    setExpanded(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
 
   // El rol 'todos' (Dirección) es de solo lectura: ve el pipeline pero no lo edita.
   const canEdit = user?.role === 'encargado';
@@ -140,12 +150,14 @@ export default function Cotizaciones() {
         <table style={{ minWidth: 1300, width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr>
+              <th style={groupHeaderStyle('#f7f4ee', '#12192b')}></th>
               <th colSpan={8} style={groupHeaderStyle('#f7f4ee', '#12192b')}>Encargado de Cuenta</th>
               <th colSpan={2} style={groupHeaderStyle('#efe9df', '#12192b')}>Calculado</th>
               <th style={groupHeaderStyle('#f7f4ee', '#12192b')}></th>
               <th style={groupHeaderStyle('#f7f4ee', '#12192b')}></th>
             </tr>
             <tr>
+              <th style={colHeaderStyle}></th>
               {['Nº Cot.', 'Mes', 'A Cargo', 'Cliente', 'Proyecto', 'Descripción', 'Costo Cliente', 'Costo Real'].map(h => (
                 <th key={h} style={colHeaderStyle}>{h}</th>
               ))}
@@ -156,14 +168,22 @@ export default function Cotizaciones() {
             </tr>
           </thead>
           <tbody>
-            {loading && <tr><td colSpan={12} style={{ padding: 24, textAlign: 'center', color: '#9aa0ad' }}>Cargando…</td></tr>}
+            {loading && <tr><td colSpan={13} style={{ padding: 24, textAlign: 'center', color: '#9aa0ad' }}>Cargando…</td></tr>}
             {!loading && filteredRows.length === 0 && (
-              <tr><td colSpan={12} style={{ padding: 24, textAlign: 'center', color: '#9aa0ad' }}>No hay cotizaciones con estos filtros.</td></tr>
+              <tr><td colSpan={13} style={{ padding: 24, textAlign: 'center', color: '#9aa0ad' }}>No hay cotizaciones con estos filtros.</td></tr>
             )}
             {filteredRows.map(row => {
               const badge = ESTADO_COT_BADGE[row.estado_cotizacion ?? 'pendiente'];
+              const isExpanded = expanded.has(row.id);
               return (
+                <>
                 <tr key={row.id} style={{ borderTop: '1px solid #efe9df' }}>
+                  <td style={cellStyle}>
+                    <button onClick={() => toggleExpanded(row.id)} title="Ver detalle de proveedores"
+                      style={{ width: 22, height: 22, color: '#5b5f6b', fontSize: 11 }}>
+                      {isExpanded ? '▾' : '▸'}
+                    </button>
+                  </td>
                   <td style={{ ...cellStyle, ...dimStyle(canEdit) }}>
                     {row.editing && canEdit ? (
                       <input type="number" style={inputStyle} value={row.n_cot} onChange={e => patchRow(row.id, { n_cot: Number(e.target.value) })} />
@@ -198,13 +218,13 @@ export default function Cotizaciones() {
                       <span className="line-clamp-2 block" title={row.descripcion}>{row.descripcion}</span>
                     )}
                   </td>
-                  <td style={{ ...cellStyle, ...dimStyle(canEdit) }}>
-                    {row.editing && canEdit ? (
+                  <td style={{ ...cellStyle, ...dimStyle(canEdit) }} title={row.tiene_detalle ? 'Se calcula automáticamente desde el detalle de proveedores' : ''}>
+                    {row.editing && canEdit && !row.tiene_detalle ? (
                       <input type="number" style={inputStyle} value={row.costo_cliente} onChange={e => patchRow(row.id, { costo_cliente: Number(e.target.value) })} />
                     ) : formatCLP(row.costo_cliente)}
                   </td>
-                  <td style={{ ...cellStyle, ...dimStyle(canEdit) }}>
-                    {row.editing && canEdit ? (
+                  <td style={{ ...cellStyle, ...dimStyle(canEdit) }} title={row.tiene_detalle ? 'Se calcula automáticamente desde el detalle de proveedores' : ''}>
+                    {row.editing && canEdit && !row.tiene_detalle ? (
                       <input type="number" style={inputStyle} value={row.costo_real} onChange={e => patchRow(row.id, { costo_real: Number(e.target.value) })} />
                     ) : formatCLP(row.costo_real)}
                   </td>
@@ -255,6 +275,18 @@ export default function Cotizaciones() {
                     </div>
                   </td>
                 </tr>
+                {isExpanded && (
+                  <tr>
+                    <td colSpan={13} style={{ padding: 0, borderTop: '1px solid #dfd8c8' }}>
+                      <CotizacionDetalle
+                        cotizacion={row}
+                        canEdit={canEdit}
+                        onCotizacionUpdated={updated => patchRow(updated.id, updated)}
+                      />
+                    </td>
+                  </tr>
+                )}
+                </>
               );
             })}
           </tbody>
