@@ -36,6 +36,9 @@ export default function CotizacionDetalle({ cotizacion, canEdit, onCotizacionUpd
     try {
       await createGrupo(cotizacion.id, { nombre: 'Nuevo grupo', proveedor: '', rut_proveedor: '' });
       await refresh();
+    } catch (err) {
+      console.error('Error al agregar proveedor:', err);
+      alert('No se pudo agregar el proveedor. Intenta de nuevo.');
     } finally {
       setBusy(false);
     }
@@ -52,6 +55,9 @@ export default function CotizacionDetalle({ cotizacion, canEdit, onCotizacionUpd
       await updateGrupo(id, draftGrupo);
       setEditingGrupoId(null);
       await refresh();
+    } catch (err) {
+      console.error('Error al guardar el proveedor:', err);
+      alert('No se pudo guardar el proveedor. Intenta de nuevo.');
     } finally {
       setBusy(false);
     }
@@ -63,6 +69,9 @@ export default function CotizacionDetalle({ cotizacion, canEdit, onCotizacionUpd
     try {
       await deleteGrupo(id);
       await refresh();
+    } catch (err) {
+      console.error('Error al eliminar el proveedor:', err);
+      alert('No se pudo eliminar el proveedor. Intenta de nuevo.');
     } finally {
       setBusy(false);
     }
@@ -73,6 +82,9 @@ export default function CotizacionDetalle({ cotizacion, canEdit, onCotizacionUpd
     try {
       await createItem(grupoId, { nombre: 'Nuevo ítem', cantidad: 1, unitario_cliente: 0, unitario_costo: 0 });
       await refresh();
+    } catch (err) {
+      console.error('Error al agregar el ítem:', err);
+      alert('No se pudo agregar el ítem. Intenta de nuevo.');
     } finally {
       setBusy(false);
     }
@@ -92,6 +104,9 @@ export default function CotizacionDetalle({ cotizacion, canEdit, onCotizacionUpd
       await updateItem(id, draftItem);
       setEditingItemId(null);
       await refresh();
+    } catch (err) {
+      console.error('Error al guardar el ítem:', err);
+      alert('No se pudo guardar el ítem. Intenta de nuevo.');
     } finally {
       setBusy(false);
     }
@@ -103,6 +118,9 @@ export default function CotizacionDetalle({ cotizacion, canEdit, onCotizacionUpd
     try {
       await deleteItem(id);
       await refresh();
+    } catch (err) {
+      console.error('Error al eliminar el ítem:', err);
+      alert('No se pudo eliminar el ítem. Intenta de nuevo.');
     } finally {
       setBusy(false);
     }

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { getCotizaciones, createCotizacion, updateCotizacion, deleteCotizacion } from '../api';
 import type { Cotizacion, EstadoCotizacion } from '../types';
@@ -176,8 +176,8 @@ export default function Cotizaciones() {
               const badge = ESTADO_COT_BADGE[row.estado_cotizacion ?? 'pendiente'];
               const isExpanded = expanded.has(row.id);
               return (
-                <>
-                <tr key={row.id} style={{ borderTop: '1px solid #efe9df' }}>
+                <Fragment key={row.id}>
+                <tr style={{ borderTop: '1px solid #efe9df' }}>
                   <td style={cellStyle}>
                     <button onClick={() => toggleExpanded(row.id)} title="Ver detalle de proveedores"
                       style={{ width: 22, height: 22, color: '#5b5f6b', fontSize: 11 }}>
@@ -286,7 +286,7 @@ export default function Cotizaciones() {
                     </td>
                   </tr>
                 )}
-                </>
+                </Fragment>
               );
             })}
           </tbody>
