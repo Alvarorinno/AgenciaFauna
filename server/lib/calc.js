@@ -13,16 +13,15 @@ export function withDerived(row) {
 
 export function withItemDerived(it) {
   const cantidad = Number(it.cantidad) || 0;
-  const dias = Number(it.dias) || 0;
   const unitarioCliente = Number(it.unitario_cliente) || 0;
   const unitarioCosto = Number(it.unitario_costo) || 0;
-  const subtotalCliente = cantidad * dias * unitarioCliente;
-  const subtotalCosto = cantidad * dias * unitarioCosto;
+  const subtotalCliente = cantidad * unitarioCliente;
+  const subtotalCosto = cantidad * unitarioCosto;
   const utilidad = subtotalCliente - subtotalCosto;
   const pctUtilidad = subtotalCliente === 0 ? 0 : Math.round((utilidad / subtotalCliente) * 1000) / 10;
   return {
     ...it,
-    cantidad, dias,
+    cantidad,
     unitario_cliente: unitarioCliente,
     unitario_costo: unitarioCosto,
     subtotal_cliente: subtotalCliente,
@@ -53,7 +52,7 @@ export function withGrupoDerived(g, items) {
 // siguen siendo editables a mano como antes de este upgrade.
 export async function recomputeTotales(cotizacionId) {
   const items = await sql`
-    SELECT i.cantidad, i.dias, i.unitario_cliente, i.unitario_costo
+    SELECT i.cantidad, i.unitario_cliente, i.unitario_costo
     FROM cotizacion_items i
     JOIN cotizacion_grupos g ON g.id = i.grupo_id
     WHERE g.cotizacion_id = ${cotizacionId}
@@ -64,9 +63,8 @@ export async function recomputeTotales(cotizacionId) {
   let costoReal = 0;
   for (const it of items) {
     const cantidad = Number(it.cantidad) || 0;
-    const dias = Number(it.dias) || 0;
-    costoCliente += cantidad * dias * (Number(it.unitario_cliente) || 0);
-    costoReal += cantidad * dias * (Number(it.unitario_costo) || 0);
+    costoCliente += cantidad * (Number(it.unitario_cliente) || 0);
+    costoReal += cantidad * (Number(it.unitario_costo) || 0);
   }
 
   await sql`

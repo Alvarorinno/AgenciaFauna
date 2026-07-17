@@ -71,7 +71,7 @@ export default function CotizacionDetalle({ cotizacion, canEdit, onCotizacionUpd
   async function handleAddItem(grupoId: number) {
     setBusy(true);
     try {
-      await createItem(grupoId, { nombre: 'Nuevo ítem', cantidad: 1, unidad: 'Unidad', dias: 1, unitario_cliente: 0, unitario_costo: 0 });
+      await createItem(grupoId, { nombre: 'Nuevo ítem', cantidad: 1, unitario_cliente: 0, unitario_costo: 0 });
       await refresh();
     } finally {
       setBusy(false);
@@ -81,7 +81,7 @@ export default function CotizacionDetalle({ cotizacion, canEdit, onCotizacionUpd
   function startEditItem(it: CotizacionItem) {
     setEditingItemId(it.id);
     setDraftItem({
-      nombre: it.nombre, cantidad: it.cantidad, unidad: it.unidad, dias: it.dias,
+      nombre: it.nombre, cantidad: it.cantidad,
       unitario_cliente: it.unitario_cliente, unitario_costo: it.unitario_costo
     });
   }
@@ -143,16 +143,16 @@ export default function CotizacionDetalle({ cotizacion, canEdit, onCotizacionUpd
 
       {cotizacion.grupos.map(g => (
         <div key={g.id} className="bg-white mb-3 overflow-x-auto" style={{ border: '1px solid #dfd8c8', borderRadius: 10 }}>
-          <table style={{ minWidth: 1100, width: '100%', borderCollapse: 'collapse' }}>
+          <table style={{ minWidth: 950, width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr>
-                <th colSpan={6} style={detHeaderStyle(CLIENTE_BG, CLIENTE_TEXT)}>Cliente</th>
+                <th colSpan={4} style={detHeaderStyle(CLIENTE_BG, CLIENTE_TEXT)}>Cliente</th>
                 <th colSpan={4} style={detHeaderStyle(COSTO_BG, COSTO_TEXT)}>Costo</th>
                 <th colSpan={2} style={detHeaderStyle(COSTO_BG, COSTO_TEXT)}>Proveedor</th>
                 {canEdit && <th style={detHeaderStyle('#f7f4ee', '#12192b')}></th>}
               </tr>
               <tr>
-                {['Nombre', 'Cant.', 'Unidad', 'Días', 'Unitario', 'Subtotal'].map(h => (
+                {['Nombre', 'Cant.', 'Unitario', 'Subtotal'].map(h => (
                   <th key={h} style={{ ...detColStyle, background: CLIENTE_BG }}>{h}</th>
                 ))}
                 {['Unitario', 'Subtotal', 'Utilidad $', 'Utilidad %'].map(h => (
@@ -167,7 +167,7 @@ export default function CotizacionDetalle({ cotizacion, canEdit, onCotizacionUpd
             <tbody>
               {/* Fila de grupo (bold, totales) */}
               <tr style={{ borderTop: '2px solid #dfd8c8', fontWeight: 700 }}>
-                <td colSpan={4} style={{ ...detCellStyle, background: CLIENTE_BG }}>
+                <td colSpan={2} style={{ ...detCellStyle, background: CLIENTE_BG }}>
                   {editingGrupoId === g.id ? (
                     <input style={inputStyle} value={draftGrupo.nombre ?? ''} onChange={e => setDraftGrupo(d => ({ ...d, nombre: e.target.value }))} />
                   ) : g.nombre}
@@ -206,7 +206,7 @@ export default function CotizacionDetalle({ cotizacion, canEdit, onCotizacionUpd
               {/* Ítems */}
               {g.items.map(it => (
                 <tr key={it.id} style={{ borderTop: '1px solid #efe9df' }}>
-                  <td colSpan={2} style={detCellStyle}>
+                  <td style={detCellStyle}>
                     {editingItemId === it.id ? (
                       <input style={inputStyle} value={draftItem.nombre ?? ''} onChange={e => setDraftItem(d => ({ ...d, nombre: e.target.value }))} />
                     ) : it.nombre}
@@ -215,16 +215,6 @@ export default function CotizacionDetalle({ cotizacion, canEdit, onCotizacionUpd
                     {editingItemId === it.id ? (
                       <input type="number" style={inputStyle} value={draftItem.cantidad ?? 0} onChange={e => setDraftItem(d => ({ ...d, cantidad: Number(e.target.value) }))} />
                     ) : it.cantidad}
-                  </td>
-                  <td style={detCellStyle}>
-                    {editingItemId === it.id ? (
-                      <input style={inputStyle} value={draftItem.unidad ?? ''} onChange={e => setDraftItem(d => ({ ...d, unidad: e.target.value }))} />
-                    ) : it.unidad}
-                  </td>
-                  <td style={detCellStyle}>
-                    {editingItemId === it.id ? (
-                      <input type="number" style={inputStyle} value={draftItem.dias ?? 0} onChange={e => setDraftItem(d => ({ ...d, dias: Number(e.target.value) }))} />
-                    ) : it.dias}
                   </td>
                   <td style={{ ...detCellStyle, background: CLIENTE_BG }}>
                     {editingItemId === it.id ? (
@@ -258,7 +248,7 @@ export default function CotizacionDetalle({ cotizacion, canEdit, onCotizacionUpd
 
               {canEdit && (
                 <tr style={{ borderTop: '1px solid #efe9df' }}>
-                  <td colSpan={13} style={{ padding: '6px 12px' }}>
+                  <td colSpan={11} style={{ padding: '6px 12px' }}>
                     <button onClick={() => handleAddItem(g.id)} disabled={busy} style={{ fontSize: 12, color: '#2c4a7c', fontWeight: 600 }}>+ Agregar ítem</button>
                   </td>
                 </tr>

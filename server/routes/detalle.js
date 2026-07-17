@@ -93,10 +93,10 @@ router.post('/grupos/:id/items', requireEncargado, async (req, res) => {
   const orden = (m ?? -1) + 1;
 
   const rows = await sql`
-    INSERT INTO cotizacion_items (grupo_id, nombre, cantidad, unidad, dias, unitario_cliente, unitario_costo, orden)
+    INSERT INTO cotizacion_items (grupo_id, nombre, cantidad, unitario_cliente, unitario_costo, orden)
     VALUES (
-      ${grupoId}, ${req.body.nombre ?? ''}, ${req.body.cantidad ?? 1}, ${req.body.unidad ?? 'Unidad'},
-      ${req.body.dias ?? 1}, ${req.body.unitario_cliente || 0}, ${req.body.unitario_costo || 0}, ${orden}
+      ${grupoId}, ${req.body.nombre ?? ''}, ${req.body.cantidad ?? 1},
+      ${req.body.unitario_cliente || 0}, ${req.body.unitario_costo || 0}, ${orden}
     )
     RETURNING *
   `;
@@ -114,7 +114,7 @@ router.put('/items/:id', requireEncargado, async (req, res) => {
   `;
   if (!existing[0]) return res.status(404).json({ error: 'Ítem no encontrado' });
 
-  const fields = ['nombre', 'cantidad', 'unidad', 'dias', 'unitario_cliente', 'unitario_costo'];
+  const fields = ['nombre', 'cantidad', 'unitario_cliente', 'unitario_costo'];
   const updates = {};
   for (const f of fields) if (req.body[f] !== undefined) updates[f] = req.body[f];
   if (Object.keys(updates).length === 0) return res.status(400).json({ error: 'Sin campos para actualizar' });
@@ -192,15 +192,15 @@ router.get('/cotizaciones/:id/pdf-cliente', async (req, res) => {
     doc.fillColor('#fff').fontSize(10.5).text(g.nombre || 'Sin nombre', 46, doc.y - 15.5, { width: 500 });
     doc.moveDown(0.6);
 
-    tableHeader(doc, ['Descripción', 'Cant.', 'Unidad', 'Días', 'Unitario', 'Subtotal'], [190, 45, 65, 45, 80, 90]);
+    tableHeader(doc, ['Descripción', 'Cant.', 'Unitario', 'Subtotal'], [260, 60, 95, 100]);
 
     let gTotal = 0;
     for (const it of gItems) {
       ensureSpace(doc, 20);
       const y = doc.y;
       doc.fontSize(9).fillColor(COLORS.tinta);
-      const cols = [190, 45, 65, 45, 80, 90];
-      const vals = [it.nombre || '', String(it.cantidad), it.unidad || '', String(it.dias), fmtCLP(it.unitario_cliente), fmtCLP(it.subtotal_cliente)];
+      const cols = [260, 60, 95, 100];
+      const vals = [it.nombre || '', String(it.cantidad), fmtCLP(it.unitario_cliente), fmtCLP(it.subtotal_cliente)];
       let x = 40;
       vals.forEach((v, i) => {
         doc.text(v, x, y, { width: cols[i] - 4 });
@@ -258,15 +258,15 @@ router.get('/grupos/:id/pdf-oc', async (req, res) => {
   doc.fillColor('#fff').fontSize(10.5).text(grupo.nombre || 'Detalle', 46, doc.y - 15.5, { width: 500 });
   doc.moveDown(0.6);
 
-  tableHeader(doc, ['Descripción', 'Cant.', 'Unidad', 'Días', 'Costo Unit.', 'Subtotal'], [190, 45, 65, 45, 80, 90]);
+  tableHeader(doc, ['Descripción', 'Cant.', 'Costo Unit.', 'Subtotal'], [260, 60, 95, 100]);
 
   let total = 0;
   for (const it of items) {
     ensureSpace(doc, 20);
     const y = doc.y;
     doc.fontSize(9).fillColor(COLORS.tinta);
-    const cols = [190, 45, 65, 45, 80, 90];
-    const vals = [it.nombre || '', String(it.cantidad), it.unidad || '', String(it.dias), fmtCLP(it.unitario_costo), fmtCLP(it.subtotal_costo)];
+    const cols = [260, 60, 95, 100];
+    const vals = [it.nombre || '', String(it.cantidad), fmtCLP(it.unitario_costo), fmtCLP(it.subtotal_costo)];
     let x = 40;
     vals.forEach((v, i) => {
       doc.text(v, x, y, { width: cols[i] - 4 });
