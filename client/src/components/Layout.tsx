@@ -35,13 +35,16 @@ export default function Layout({ page, setPage, children }: Props) {
           <div className="flex items-center gap-3">
             <div
               className="flex items-center justify-center rounded-2xl shrink-0"
-              style={{ width: 40, height: 40, background: '#c8a24a', borderRadius: 12 }}
+              style={{ width: 40, height: 40, background: '#12192b', border: '1px solid #2a3248', borderRadius: 12 }}
             >
-              <span className="font-bold text-ink text-lg">F</span>
+              <svg viewBox="0 0 120 120" style={{ width: 28, height: 28 }}>
+                <text x="60" y="78" fontFamily="Newsreader, serif" fontStyle="italic" fontWeight="600" fontSize="78" textAnchor="middle" fill="#c8a24a">T</text>
+                <path d="M 30 92 Q 60 104 90 88" stroke="#c8a24a" strokeWidth="5" fill="none" strokeLinecap="round" />
+              </svg>
             </div>
             <div>
-              <h1 className="title-serif font-semibold" style={{ fontSize: 17 }}>MrTom</h1>
-              <p style={{ fontSize: 11, color: '#9aa0ad' }}>Presupuesto Fauna BTL 2026</p>
+              <h1 className="title-serif font-semibold" style={{ fontSize: 17 }}>Agencia Fauna</h1>
+              <p style={{ fontSize: 11, color: '#9aa0ad' }}>Cotizaciones BTL 2026</p>
             </div>
           </div>
         </div>

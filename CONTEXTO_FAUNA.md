@@ -10,6 +10,8 @@
 
 Diseño de referencia (handoff de Claude Design): `~/Desktop/EMPRESAS/AGENCIA FAUNA/Información Sistema/design_handoff_fauna_cotizaciones/` — contiene `README.md`, `field-reference.md` y `sample-data.json` con el spec completo (colores, tipografía, reglas de negocio). Ante cualquier duda de comportamiento/diseño, esos archivos son la fuente de verdad.
 
+**Identidad visual (2026-07-17):** el isotipo y wordmark "MrTom" del login y del sidebar se reemplazaron por el nuevo isotipo de marca (monograma "T" en Newsreader itálico + trazo de firma, ver `~/Desktop/Claude/mrtom_brand/NUEVA IMAGEN/MrTom Brand Book.dc.html`) sobre fondo tinta (`#12192b`) con el ícono en latón (`#c8a24a`), y el wordmark pasó a decir "Agencia Fauna" (antes "MrTom") — ver `client/src/pages/Login.tsx` y `client/src/components/Layout.tsx`.
+
 - **Repositorio GitHub:** https://github.com/Alvarorinno/AgenciaFauna
 - **Stack:** Node 24 + Express + `@neondatabase/serverless` (Postgres/Neon, backend) · React 18 + TypeScript + Vite + Tailwind (frontend)
 - **Deploy:** Vercel (serverless functions + estáticos), base de datos Postgres vía Vercel Postgres/Neon. Migrado desde Railway + `node:sqlite` — ver sección 7.
@@ -46,17 +48,21 @@ AgenciaFauna/
 
 ---
 
-## 3. Roles y Usuarios Demo
+## 3. Roles y Usuarios
 
-Password para los 3: `fauna2026` (cambiar via env vars `ENCARGADO_PASS` / `FINANZAS_PASS` / `DIRECTOR_PASS` en producción).
+Usuarios reales (2026-07-17, reemplazaron a los demo genéricos `encargado`/`finanzas`/`director` con password compartida `fauna2026`, que fueron eliminados de la tabla `users` vía migración idempotente en `server/db.js`). Passwords por defecto hardcodeadas, overrideables vía env vars `FRANCISCA_PASS` / `ALVARO_PASS` / `EZEQUIEL_PASS` (ver `.env.example`) — recomendado setearlas en producción.
 
-| Usuario | role (interno) | Nombre mostrado | Puede editar |
-|---|---|---|---|
-| `encargado` | `encargado` | Javiera Soto | Columnas de cuenta (8 campos) |
-| `finanzas` | `finanzas` | Jefe de Finanzas | Columnas de Finanzas (4 campos) |
-| `director` | `todos` | Dirección | Ambas secciones |
+| Usuario | Password default | role (interno) | Nombre mostrado | Puede editar |
+|---|---|---|---|---|
+| `francisca` | `frans123` | `encargado` | Francisca Sierralta | Columnas de cuenta (8 campos) + `estado_cotizacion` (aprobar/rechazar/reactivar) |
+| `alvaro` | `fin123` | `finanzas` | Álvaro | Columnas de Finanzas (4 campos) |
+| `ezequiel` | `ezev123` | `todos` | Ezequiel | **Nada — solo lectura.** Ve Dashboard, Cotizaciones y Eventos/Proyectos completos, pero no puede crear, editar, eliminar, aprobar ni rechazar nada. |
 
-El gating de permisos está **duplicado a propósito**: en la UI (`Eventos.tsx`, dimming al 40% + `pointer-events:none` de la sección no editable) y en el servidor (`routes/cotizaciones.js`, filtra campos permitidos por `req.user.role` antes del UPDATE). No confiar solo en la UI.
+**El rol `todos` (Dirección) es de solo lectura**, a diferencia del diseño original donde tenía edición completa de ambas secciones. Esto se aplica en dos capas (igual patrón que el resto de los permisos):
+- **Servidor** (`routes/cotizaciones.js`): `POST`/`DELETE` solo permiten `role === 'encargado'`; en `PUT`, `allowedFields` es un array vacío para `todos` (no tiene ningún campo editable, ni de Encargado ni de Finanzas).
+- **Cliente** (`Eventos.tsx`, `Cotizaciones.tsx`): `canEditEncargado`/`canEditFinanzas`/`canDelete`/`canEdit` ya no incluyen `'todos'` — solo `'encargado'` y/o `'finanzas'` según la sección. El dimming (40% opacidad + `pointer-events:none`) y la ausencia de botones de acción (Agregar/Editar/Eliminar/Aprobar/Rechazar/Reactivar) para `todos` es consecuencia directa de eso, no un caso especial adicional.
+
+El gating de permisos está **duplicado a propósito**: en la UI (dimming + `pointer-events:none` de la sección no editable) y en el servidor (filtra campos permitidos por `req.user.role` antes del UPDATE, y bloquea POST/DELETE por rol). No confiar solo en la UI.
 
 ---
 

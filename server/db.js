@@ -51,20 +51,26 @@ async function runInit() {
     );
   `;
 
-  // Usuarios demo (reemplazar por auth real en producción)
+  // Migración: se retiran los usuarios demo genéricos (encargado/finanzas/director,
+  // contraseña compartida fauna2026) en favor de cuentas nominales reales. Idempotente:
+  // no-op en los arranques siguientes, una vez que ya fueron eliminados.
+  await sql`DELETE FROM users WHERE username IN ('encargado', 'finanzas', 'director')`;
+
+  // Usuarios reales. El rol 'todos' (Dirección) es de solo lectura en toda la app
+  // (UI y servidor) — ver ENCARGADO_FIELDS/FINANCE_FIELDS en routes/cotizaciones.js.
   await sql`
     INSERT INTO users (username, password, role, nombre)
-    VALUES (${'encargado'}, ${process.env.ENCARGADO_PASS || 'fauna2026'}, ${'encargado'}, ${'Javiera Soto'})
+    VALUES (${'francisca'}, ${process.env.FRANCISCA_PASS || 'frans123'}, ${'encargado'}, ${'Francisca Sierralta'})
     ON CONFLICT (username) DO NOTHING
   `;
   await sql`
     INSERT INTO users (username, password, role, nombre)
-    VALUES (${'finanzas'}, ${process.env.FINANZAS_PASS || 'fauna2026'}, ${'finanzas'}, ${'Jefe de Finanzas'})
+    VALUES (${'alvaro'}, ${process.env.ALVARO_PASS || 'fin123'}, ${'finanzas'}, ${'Álvaro'})
     ON CONFLICT (username) DO NOTHING
   `;
   await sql`
     INSERT INTO users (username, password, role, nombre)
-    VALUES (${'director'}, ${process.env.DIRECTOR_PASS || 'fauna2026'}, ${'todos'}, ${'Dirección'})
+    VALUES (${'ezequiel'}, ${process.env.EZEQUIEL_PASS || 'ezev123'}, ${'todos'}, ${'Ezequiel'})
     ON CONFLICT (username) DO NOTHING
   `;
 

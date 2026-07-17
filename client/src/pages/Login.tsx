@@ -35,12 +35,15 @@ export default function Login() {
         <div className="flex flex-col items-center mb-7">
           <div
             className="flex items-center justify-center rounded-2xl mb-4"
-            style={{ width: 64, height: 64, background: '#c8a24a' }}
+            style={{ width: 64, height: 64, background: '#12192b' }}
           >
-            <span className="font-bold text-ink" style={{ fontSize: 26 }}>F</span>
+            <svg viewBox="0 0 120 120" style={{ width: 44, height: 44 }}>
+              <text x="60" y="78" fontFamily="Newsreader, serif" fontStyle="italic" fontWeight="600" fontSize="78" textAnchor="middle" fill="#c8a24a">T</text>
+              <path d="M 30 92 Q 60 104 90 88" stroke="#c8a24a" strokeWidth="5" fill="none" strokeLinecap="round" />
+            </svg>
           </div>
-          <h1 className="title-serif font-semibold text-ink" style={{ fontSize: 26 }}>MrTom</h1>
-          <p className="text-muted mt-1" style={{ fontSize: 13.5 }}>Agencia Fauna · Cotizaciones BTL</p>
+          <h1 className="title-serif font-semibold text-ink" style={{ fontSize: 26 }}>Agencia Fauna</h1>
+          <p className="text-muted mt-1" style={{ fontSize: 13.5 }}>Cotizaciones BTL</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -50,7 +53,7 @@ export default function Login() {
               type="text"
               value={username}
               onChange={e => setUsername(e.target.value)}
-              placeholder="encargado / finanzas / director"
+              placeholder="Usuario"
               className="w-full outline-none"
               style={{ padding: '11px 14px', border: '1px solid #dfd8c8', borderRadius: 8, fontSize: 14 }}
               required
@@ -85,10 +88,6 @@ export default function Login() {
             {loading ? 'Ingresando...' : 'Ingresar'}
           </button>
         </form>
-
-        <p className="text-center mt-5" style={{ fontSize: 11.5, color: '#9aa0ad' }}>
-          Demo: encargado / finanzas / director — contraseña <b>fauna2026</b>
-        </p>
       </div>
     </div>
   );

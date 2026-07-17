@@ -23,7 +23,8 @@ router.get('/', async (req, res) => {
 });
 
 router.post('/', async (req, res) => {
-  if (!['encargado', 'todos'].includes(req.user.role)) {
+  // 'todos' (Dirección) es un rol de solo lectura: puede ver todo pero no crear/editar/eliminar.
+  if (req.user.role !== 'encargado') {
     return res.status(403).json({ error: 'Sin permiso para crear cotizaciones' });
   }
 
@@ -62,8 +63,8 @@ router.put('/:id', async (req, res) => {
   const existing = await sql`SELECT * FROM cotizaciones WHERE id = ${id}`;
   if (!existing[0]) return res.status(404).json({ error: 'Cotización no encontrada' });
 
+  // 'todos' (Dirección) es un rol de solo lectura: no tiene campos editables.
   const allowedFields =
-    req.user.role === 'todos' ? [...ENCARGADO_FIELDS, ...FINANCE_FIELDS] :
     req.user.role === 'encargado' ? ENCARGADO_FIELDS :
     req.user.role === 'finanzas' ? FINANCE_FIELDS : [];
 
@@ -88,7 +89,7 @@ router.put('/:id', async (req, res) => {
 });
 
 router.delete('/:id', async (req, res) => {
-  if (!['encargado', 'todos'].includes(req.user.role)) {
+  if (req.user.role !== 'encargado') {
     return res.status(403).json({ error: 'Sin permiso para eliminar cotizaciones' });
   }
   await sql`DELETE FROM cotizaciones WHERE id = ${Number(req.params.id)}`;

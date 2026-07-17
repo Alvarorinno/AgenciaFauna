@@ -19,7 +19,8 @@ export default function Cotizaciones() {
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({ mes: 'todos', cliente: 'todos', aCargo: 'todos', estado: 'todos' });
 
-  const canEdit = user?.role === 'encargado' || user?.role === 'todos';
+  // El rol 'todos' (Dirección) es de solo lectura: ve el pipeline pero no lo edita.
+  const canEdit = user?.role === 'encargado';
 
   useEffect(() => {
     getCotizaciones()

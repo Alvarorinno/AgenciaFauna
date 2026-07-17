@@ -20,9 +20,10 @@ export default function Eventos() {
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({ mes: 'todos', cliente: 'todos', aCargo: 'todos', estadoPago: 'todos' });
 
-  const canEditEncargado = user?.role === 'encargado' || user?.role === 'todos';
-  const canEditFinanzas = user?.role === 'finanzas' || user?.role === 'todos';
-  const canDelete = user?.role === 'encargado' || user?.role === 'todos';
+  // El rol 'todos' (Dirección) es de solo lectura: ve ambas secciones pero no edita nada.
+  const canEditEncargado = user?.role === 'encargado';
+  const canEditFinanzas = user?.role === 'finanzas';
+  const canDelete = user?.role === 'encargado';
 
   useEffect(() => {
     getCotizaciones()
@@ -49,9 +50,7 @@ export default function Eventos() {
   }
 
   async function saveRow(row: Cotizacion) {
-    const fields = user?.role === 'todos'
-      ? [...ENCARGADO_FIELDS, ...FINANCE_FIELDS]
-      : user?.role === 'encargado' ? ENCARGADO_FIELDS
+    const fields = user?.role === 'encargado' ? ENCARGADO_FIELDS
       : user?.role === 'finanzas' ? FINANCE_FIELDS : [];
 
     const payload: Record<string, unknown> = {};
@@ -88,7 +87,7 @@ export default function Eventos() {
       <p className="mb-5" style={{ fontSize: 13.5, color: '#5b5f6b' }}>
         {user?.role === 'encargado' && 'Puedes editar los datos de cuenta; la sección Finanzas es de solo lectura.'}
         {user?.role === 'finanzas' && 'Puedes editar la sección Finanzas; los datos de cuenta son de solo lectura.'}
-        {user?.role === 'todos' && 'Tienes acceso completo de edición a ambas secciones.'}
+        {user?.role === 'todos' && 'Acceso de solo lectura a ambas secciones.'}
       </p>
 
       {/* Filters */}
