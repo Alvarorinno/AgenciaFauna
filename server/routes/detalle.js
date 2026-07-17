@@ -16,6 +16,22 @@ function requireEncargado(req, res, next) {
   next();
 }
 
+// Además de ser 'encargado', solo puede tocar detalle de cotizaciones de su
+// propia línea de negocio. Devuelve la línea de la cotización dueña, o null
+// (y ya respondió el error) si no está permitido.
+async function checkLineaCotizacion(req, res, cotizacionId) {
+  const rows = await sql`SELECT linea_negocio FROM cotizaciones WHERE id = ${cotizacionId}`;
+  if (!rows[0]) {
+    res.status(404).json({ error: 'Cotización no encontrada' });
+    return null;
+  }
+  if (rows[0].linea_negocio !== req.user.linea_negocio) {
+    res.status(403).json({ error: 'Sin permiso para editar el detalle de otra línea de negocio' });
+    return null;
+  }
+  return rows[0].linea_negocio;
+}
+
 const COMPANY = {
   razonSocial: 'Agencia Fauna SpA',
   rut: '77.897.540-1',
@@ -35,8 +51,8 @@ router.post('/grupos', requireEncargado, async (req, res) => {
   const cotizacionId = Number(req.body.cotizacion_id);
   if (!cotizacionId) return res.status(400).json({ error: 'Falta cotizacion_id' });
 
-  const cot = await sql`SELECT id FROM cotizaciones WHERE id = ${cotizacionId}`;
-  if (!cot[0]) return res.status(404).json({ error: 'Cotización no encontrada' });
+  const linea = await checkLineaCotizacion(req, res, cotizacionId);
+  if (linea === null) return;
 
   const [{ m }] = await sql`SELECT MAX(orden) as m FROM cotizacion_grupos WHERE cotizacion_id = ${cotizacionId}`;
   const orden = (m ?? -1) + 1;
@@ -53,6 +69,9 @@ router.put('/grupos/:id', requireEncargado, async (req, res) => {
   const id = Number(req.params.id);
   const existing = await sql`SELECT * FROM cotizacion_grupos WHERE id = ${id}`;
   if (!existing[0]) return res.status(404).json({ error: 'Grupo no encontrado' });
+
+  const linea = await checkLineaCotizacion(req, res, existing[0].cotizacion_id);
+  if (linea === null) return;
 
   const fields = ['nombre', 'proveedor', 'rut_proveedor'];
   const updates = {};
@@ -77,6 +96,9 @@ router.delete('/grupos/:id', requireEncargado, async (req, res) => {
   if (!existing[0]) return res.status(404).json({ error: 'Grupo no encontrado' });
 
   const cotizacionId = existing[0].cotizacion_id;
+  const linea = await checkLineaCotizacion(req, res, cotizacionId);
+  if (linea === null) return;
+
   await sql`DELETE FROM cotizacion_grupos WHERE id = ${id}`; // ON DELETE CASCADE se lleva sus ítems
   await recomputeTotales(cotizacionId);
   res.json({ ok: true });
@@ -88,6 +110,9 @@ router.post('/grupos/:id/items', requireEncargado, async (req, res) => {
   const grupoId = Number(req.params.id);
   const grupo = await sql`SELECT * FROM cotizacion_grupos WHERE id = ${grupoId}`;
   if (!grupo[0]) return res.status(404).json({ error: 'Grupo no encontrado' });
+
+  const linea = await checkLineaCotizacion(req, res, grupo[0].cotizacion_id);
+  if (linea === null) return;
 
   const [{ m }] = await sql`SELECT MAX(orden) as m FROM cotizacion_items WHERE grupo_id = ${grupoId}`;
   const orden = (m ?? -1) + 1;
@@ -113,6 +138,9 @@ router.put('/items/:id', requireEncargado, async (req, res) => {
     WHERE i.id = ${id}
   `;
   if (!existing[0]) return res.status(404).json({ error: 'Ítem no encontrado' });
+
+  const linea = await checkLineaCotizacion(req, res, existing[0].cotizacion_id);
+  if (linea === null) return;
 
   const fields = ['nombre', 'cantidad', 'unitario_cliente', 'unitario_costo'];
   const updates = {};
@@ -140,6 +168,9 @@ router.delete('/items/:id', requireEncargado, async (req, res) => {
     WHERE i.id = ${id}
   `;
   if (!existing[0]) return res.status(404).json({ error: 'Ítem no encontrado' });
+
+  const linea = await checkLineaCotizacion(req, res, existing[0].cotizacion_id);
+  if (linea === null) return;
 
   await sql`DELETE FROM cotizacion_items WHERE id = ${id}`;
   await recomputeTotales(existing[0].cotizacion_id);

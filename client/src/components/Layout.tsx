@@ -1,11 +1,14 @@
 import { ReactNode } from 'react';
 import { useAuth } from '../context/AuthContext';
+import type { LineaNegocio } from '../types';
 
 type Page = 'dashboard' | 'cotizaciones' | 'eventos';
 
 interface Props {
   page: Page;
   setPage: (p: Page) => void;
+  linea: LineaNegocio;
+  setLinea: (l: LineaNegocio) => void;
   children: ReactNode;
 }
 
@@ -15,12 +18,17 @@ const ROLE_LABELS: Record<string, string> = {
   todos: 'Dirección'
 };
 
-export default function Layout({ page, setPage, children }: Props) {
+const LINEAS: { id: LineaNegocio; label: string }[] = [
+  { id: 'fauna_rd', label: 'Fauna RD' },
+  { id: 'agencia', label: 'Agencia' }
+];
+
+export default function Layout({ page, setPage, linea, setLinea, children }: Props) {
   const { user, logout } = useAuth();
 
-  const navItems: { id: Page; label: string; icon: string }[] = [
+  const navItems = (role: string | undefined): { id: Page; label: string; icon: string }[] => [
     { id: 'dashboard', label: 'Dashboard', icon: '▦' },
-    ...(user?.role === 'finanzas' ? [] : [{ id: 'cotizaciones' as Page, label: 'Cotizaciones', icon: '📝' }]),
+    ...(role === 'finanzas' ? [] : [{ id: 'cotizaciones' as Page, label: 'Cotizaciones', icon: '📝' }]),
     { id: 'eventos', label: 'Eventos / Proyectos', icon: '▤' }
   ];
 
@@ -50,24 +58,39 @@ export default function Layout({ page, setPage, children }: Props) {
 
         <div style={{ borderTop: '1px solid #2a3248' }} />
 
-        <nav className="flex-1 p-4 space-y-1">
-          {navItems.map(({ id, label, icon }) => (
-            <button
-              key={id}
-              onClick={() => setPage(id)}
-              className="w-full flex items-center gap-2.5 transition-colors"
-              style={{
-                padding: '9px 14px',
-                borderRadius: 9,
-                fontSize: 14,
-                fontWeight: 600,
-                background: page === id ? '#c8a24a' : 'transparent',
-                color: page === id ? '#12192b' : '#c3c7d1'
-              }}
-            >
-              <span>{icon}</span>
-              {label}
-            </button>
+        <nav className="flex-1 p-4 space-y-4 overflow-auto">
+          {LINEAS.map(({ id: lineaId, label: lineaLabel }) => (
+            <div key={lineaId}>
+              <p
+                className="uppercase"
+                style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.6, color: '#6a7185', padding: '0 14px', marginBottom: 6 }}
+              >
+                {lineaLabel}
+              </p>
+              <div className="space-y-1">
+                {navItems(user?.role).map(({ id, label, icon }) => {
+                  const active = page === id && linea === lineaId;
+                  return (
+                    <button
+                      key={`${lineaId}-${id}`}
+                      onClick={() => { setLinea(lineaId); setPage(id); }}
+                      className="w-full flex items-center gap-2.5 transition-colors"
+                      style={{
+                        padding: '9px 14px',
+                        borderRadius: 9,
+                        fontSize: 14,
+                        fontWeight: 600,
+                        background: active ? '#c8a24a' : 'transparent',
+                        color: active ? '#12192b' : '#c3c7d1'
+                      }}
+                    >
+                      <span>{icon}</span>
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           ))}
 
           <div

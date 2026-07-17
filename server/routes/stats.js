@@ -8,7 +8,10 @@ router.use(authMiddleware);
 const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
 
 router.get('/', async (req, res) => {
-  const rows = await sql`SELECT * FROM cotizaciones WHERE estado_cotizacion = 'aprobado'`;
+  const linea = typeof req.query.linea === 'string' ? req.query.linea : null;
+  const rows = linea
+    ? await sql`SELECT * FROM cotizaciones WHERE estado_cotizacion = 'aprobado' AND linea_negocio = ${linea}`
+    : await sql`SELECT * FROM cotizaciones WHERE estado_cotizacion = 'aprobado'`;
 
   let totalCotizado = 0;
   let totalUtilidad = 0;

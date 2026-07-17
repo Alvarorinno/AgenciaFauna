@@ -33,8 +33,8 @@ export const deleteCotizacion = async (id: number): Promise<void> => {
   await api.delete(`/cotizaciones/${id}`);
 };
 
-export const getStats = async (): Promise<Stats> => {
-  const { data } = await api.get('/stats');
+export const getStats = async (linea?: string): Promise<Stats> => {
+  const { data } = await api.get('/stats', { params: linea ? { linea } : undefined });
   return data;
 };
 

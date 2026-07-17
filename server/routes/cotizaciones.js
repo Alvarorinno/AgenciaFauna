@@ -61,8 +61,12 @@ router.post('/', async (req, res) => {
     ? req.body.estado_cotizacion
     : 'pendiente';
 
+  // La línea de negocio se deriva SIEMPRE del usuario autenticado, nunca del body
+  // (evita que un 'encargado' cree cotizaciones en la línea de otro).
+  const lineaNegocio = req.user.linea_negocio || 'fauna_rd';
+
   const rows = await sql`
-    INSERT INTO cotizaciones (n_cot, mes, a_cargo, cliente, proyecto, descripcion, costo_cliente, costo_real, estado_pago, estado_cotizacion)
+    INSERT INTO cotizaciones (n_cot, mes, a_cargo, cliente, proyecto, descripcion, costo_cliente, costo_real, estado_pago, estado_cotizacion, linea_negocio)
     VALUES (
       ${nCot},
       ${req.body.mes ?? 'enero'},
@@ -73,7 +77,8 @@ router.post('/', async (req, res) => {
       ${req.body.costo_cliente || 0},
       ${req.body.costo_real || 0},
       'na',
-      ${estadoCotizacion}
+      ${estadoCotizacion},
+      ${lineaNegocio}
     )
     RETURNING *
   `;
@@ -85,6 +90,12 @@ router.put('/:id', async (req, res) => {
   const id = Number(req.params.id);
   const existing = await sql`SELECT * FROM cotizaciones WHERE id = ${id}`;
   if (!existing[0]) return res.status(404).json({ error: 'Cotización no encontrada' });
+
+  // Un 'encargado' solo puede editar cotizaciones de su propia línea de negocio
+  // (finanzas edita campos financieros en ambas líneas por diseño).
+  if (req.user.role === 'encargado' && existing[0].linea_negocio !== req.user.linea_negocio) {
+    return res.status(403).json({ error: 'Sin permiso para editar cotizaciones de otra línea de negocio' });
+  }
 
   // 'todos' (Dirección) es un rol de solo lectura: no tiene campos editables.
   const allowedFields =
@@ -124,7 +135,13 @@ router.delete('/:id', async (req, res) => {
   if (req.user.role !== 'encargado') {
     return res.status(403).json({ error: 'Sin permiso para eliminar cotizaciones' });
   }
-  await sql`DELETE FROM cotizaciones WHERE id = ${Number(req.params.id)}`;
+  const id = Number(req.params.id);
+  const existing = await sql`SELECT linea_negocio FROM cotizaciones WHERE id = ${id}`;
+  if (!existing[0]) return res.status(404).json({ error: 'Cotización no encontrada' });
+  if (existing[0].linea_negocio !== req.user.linea_negocio) {
+    return res.status(403).json({ error: 'Sin permiso para eliminar cotizaciones de otra línea de negocio' });
+  }
+  await sql`DELETE FROM cotizaciones WHERE id = ${id}`;
   res.json({ ok: true });
 });
 

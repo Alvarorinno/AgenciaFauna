@@ -1,16 +1,19 @@
 import { useEffect, useState } from 'react';
 import { getStats } from '../api';
-import type { Stats } from '../types';
+import type { Stats, LineaNegocio } from '../types';
 import StatCard from '../components/StatCard';
 import BarList from '../components/BarList';
 import { formatCLP, capitalize } from '../utils';
 
-export default function Dashboard() {
+const LINEA_LABELS: Record<LineaNegocio, string> = { fauna_rd: 'Fauna RD', agencia: 'Agencia' };
+
+export default function Dashboard({ linea }: { linea: LineaNegocio }) {
   const [stats, setStats] = useState<Stats | null>(null);
 
   useEffect(() => {
-    getStats().then(setStats).catch(() => setStats(null));
-  }, []);
+    setStats(null);
+    getStats(linea).then(setStats).catch(() => setStats(null));
+  }, [linea]);
 
   if (!stats) {
     return <p style={{ color: '#5b5f6b' }}>Cargando dashboard…</p>;
@@ -20,7 +23,7 @@ export default function Dashboard() {
 
   return (
     <div>
-      <h1 className="title-serif font-semibold" style={{ fontSize: 24, color: '#12192b' }}>Dashboard</h1>
+      <h1 className="title-serif font-semibold" style={{ fontSize: 24, color: '#12192b' }}>Dashboard — {LINEA_LABELS[linea]}</h1>
       <p className="mb-6" style={{ fontSize: 13.5, color: '#5b5f6b' }}>
         Resumen general de cotizaciones y facturación
       </p>

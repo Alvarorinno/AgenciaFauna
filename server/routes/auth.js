@@ -13,7 +13,7 @@ router.post('/login', async (req, res) => {
   `;
   const user = rows[0];
   if (!user) return res.status(401).json({ error: 'Usuario o contraseña incorrectos' });
-  const payload = { id: user.id, username: user.username, role: user.role, nombre: user.nombre };
+  const payload = { id: user.id, username: user.username, role: user.role, nombre: user.nombre, linea_negocio: user.linea_negocio };
   const token = jwt.sign(payload, SECRET, { expiresIn: '8h' });
   res.json({ token, user: payload });
 });

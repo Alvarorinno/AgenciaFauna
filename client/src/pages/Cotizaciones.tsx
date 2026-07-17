@@ -1,12 +1,14 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { getCotizaciones, createCotizacion, updateCotizacion, deleteCotizacion } from '../api';
-import type { Cotizacion, EstadoCotizacion } from '../types';
+import type { Cotizacion, EstadoCotizacion, LineaNegocio } from '../types';
 import { MESES } from '../types';
 import { formatCLP, capitalize } from '../utils';
 import CotizacionDetalle from '../components/CotizacionDetalle';
 
 const ENCARGADO_FIELDS = ['n_cot', 'mes', 'a_cargo', 'cliente', 'proyecto', 'descripcion', 'costo_cliente', 'costo_real'] as const;
+
+const LINEA_LABELS: Record<LineaNegocio, string> = { fauna_rd: 'Fauna RD', agencia: 'Agencia' };
 
 const ESTADO_COT_BADGE: Record<EstadoCotizacion, { label: string; bg: string; text: string }> = {
   pendiente: { label: 'Pendiente', bg: '#faf0d7', text: '#8a6a1f' },
@@ -14,7 +16,7 @@ const ESTADO_COT_BADGE: Record<EstadoCotizacion, { label: string; bg: string; te
   rechazado: { label: 'Rechazado', bg: '#f6e4e6', text: '#6d2632' }
 };
 
-export default function Cotizaciones() {
+export default function Cotizaciones({ linea }: { linea: LineaNegocio }) {
   const { user } = useAuth();
   const [rows, setRows] = useState<Cotizacion[]>([]);
   const [loading, setLoading] = useState(true);
@@ -30,16 +32,19 @@ export default function Cotizaciones() {
   }
 
   // El rol 'todos' (Dirección) es de solo lectura: ve el pipeline pero no lo edita.
-  const canEdit = user?.role === 'encargado';
+  // Un 'encargado' solo puede editar la línea de negocio a la que está asociado;
+  // puede ver la otra línea pero no gestionarla.
+  const canEdit = user?.role === 'encargado' && user.linea_negocio === linea;
 
   useEffect(() => {
+    setLoading(true);
     getCotizaciones()
       .then(data => {
-        setRows(data.filter(r => r.estado_cotizacion !== 'aprobado'));
+        setRows(data.filter(r => r.estado_cotizacion !== 'aprobado' && r.linea_negocio === linea));
         setLoading(false);
       })
       .catch(() => setLoading(false));
-  }, []);
+  }, [linea]);
 
   const clientes = useMemo(() => Array.from(new Set(rows.map(r => r.cliente).filter(Boolean))).sort(), [rows]);
   const aCargos = useMemo(() => Array.from(new Set(rows.map(r => r.a_cargo).filter(Boolean))).sort(), [rows]);
@@ -117,7 +122,7 @@ export default function Cotizaciones() {
 
   return (
     <div>
-      <h1 className="title-serif font-semibold" style={{ fontSize: 24, color: '#12192b' }}>Cotizaciones</h1>
+      <h1 className="title-serif font-semibold" style={{ fontSize: 24, color: '#12192b' }}>Cotizaciones — {LINEA_LABELS[linea]}</h1>
       <p className="mb-5" style={{ fontSize: 13.5, color: '#5b5f6b' }}>
         Pipeline de cotizaciones en revisión. Al aprobar una cotización, se mueve directamente a Eventos / Proyectos y sale de esta lista.
         Las rechazadas quedan aquí y pueden reactivarse en cualquier momento.

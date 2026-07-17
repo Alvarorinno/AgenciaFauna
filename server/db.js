@@ -41,6 +41,11 @@ async function runInit() {
   await sql`ALTER TABLE cotizaciones ADD COLUMN IF NOT EXISTS estado_cotizacion TEXT`;
   await sql`UPDATE cotizaciones SET estado_cotizacion = 'aprobado' WHERE estado_cotizacion IS NULL`;
 
+  // Línea de negocio: 'fauna_rd' (histórico) o 'agencia' (nueva). Todo lo cargado
+  // hasta ahora pertenece a Fauna RD, así que el default y el backfill apuntan ahí.
+  await sql`ALTER TABLE cotizaciones ADD COLUMN IF NOT EXISTS linea_negocio TEXT`;
+  await sql`UPDATE cotizaciones SET linea_negocio = 'fauna_rd' WHERE linea_negocio IS NULL`;
+
   // Detalle de proveedores por cotización: grupos (una partida por proveedor,
   // ej. "ADHESIVO SERVICIO TÉCNICO") con sus líneas de ítem (cantidad/unidad/días/precios).
   // costo_cliente y costo_real a nivel cotización se recalculan como la suma de estos ítems
@@ -84,6 +89,10 @@ async function runInit() {
     );
   `;
 
+  // Línea de negocio a cargo de un 'encargado' (null para roles globales como
+  // 'finanzas'/'todos', que no están acotados a una sola línea).
+  await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS linea_negocio TEXT`;
+
   // Migración: se retiran los usuarios demo genéricos (encargado/finanzas/director,
   // contraseña compartida fauna2026) en favor de cuentas nominales reales. Idempotente:
   // no-op en los arranques siguientes, una vez que ya fueron eliminados.
@@ -92,20 +101,29 @@ async function runInit() {
   // Usuarios reales. El rol 'todos' (Dirección) es de solo lectura en toda la app
   // (UI y servidor) — ver ENCARGADO_FIELDS/FINANCE_FIELDS en routes/cotizaciones.js.
   await sql`
-    INSERT INTO users (username, password, role, nombre)
-    VALUES (${'francisca'}, ${process.env.FRANCISCA_PASS || 'frans123'}, ${'encargado'}, ${'Francisca Sierralta'})
+    INSERT INTO users (username, password, role, nombre, linea_negocio)
+    VALUES (${'francisca'}, ${process.env.FRANCISCA_PASS || 'frans123'}, ${'encargado'}, ${'Francisca Sierralta'}, ${'fauna_rd'})
     ON CONFLICT (username) DO NOTHING
   `;
   await sql`
-    INSERT INTO users (username, password, role, nombre)
-    VALUES (${'alvaro'}, ${process.env.ALVARO_PASS || 'fin123'}, ${'finanzas'}, ${'Álvaro'})
+    INSERT INTO users (username, password, role, nombre, linea_negocio)
+    VALUES (${'alvaro'}, ${process.env.ALVARO_PASS || 'fin123'}, ${'finanzas'}, ${'Álvaro'}, ${null})
     ON CONFLICT (username) DO NOTHING
   `;
   await sql`
-    INSERT INTO users (username, password, role, nombre)
-    VALUES (${'ezequiel'}, ${process.env.EZEQUIEL_PASS || 'ezev123'}, ${'todos'}, ${'Ezequiel'})
+    INSERT INTO users (username, password, role, nombre, linea_negocio)
+    VALUES (${'ezequiel'}, ${process.env.EZEQUIEL_PASS || 'ezev123'}, ${'todos'}, ${'Ezequiel'}, ${null})
     ON CONFLICT (username) DO NOTHING
   `;
+  await sql`
+    INSERT INTO users (username, password, role, nombre, linea_negocio)
+    VALUES (${'agustina'}, ${process.env.AGUSTINA_PASS || 'Guchi123'}, ${'encargado'}, ${'Agustina'}, ${'agencia'})
+    ON CONFLICT (username) DO NOTHING
+  `;
+
+  // ON CONFLICT DO NOTHING no actualiza filas ya existentes: si francisca fue
+  // creada antes de que existiera la columna linea_negocio, la backfilleamos aquí.
+  await sql`UPDATE users SET linea_negocio = 'fauna_rd' WHERE username = 'francisca' AND linea_negocio IS NULL`;
 
   // Auto-seed en primer arranque si la tabla está vacía
   const [{ n }] = await sql`SELECT COUNT(*)::int as n FROM cotizaciones`;
@@ -116,10 +134,10 @@ async function runInit() {
       for (const r of data) {
         await sql`
           INSERT INTO cotizaciones
-            (n_cot, mes, a_cargo, cliente, proyecto, descripcion, costo_cliente, costo_real, factura, fecha_factura, mes_factura, estado_pago, estado_cotizacion)
+            (n_cot, mes, a_cargo, cliente, proyecto, descripcion, costo_cliente, costo_real, factura, fecha_factura, mes_factura, estado_pago, estado_cotizacion, linea_negocio)
           VALUES
             (${r.n_cot ?? null}, ${r.mes ?? null}, ${r.a_cargo ?? null}, ${r.cliente ?? null}, ${r.proyecto ?? null}, ${r.descripcion ?? null},
-             ${r.costo_cliente || 0}, ${r.costo_real || 0}, ${r.factura ?? null}, ${r.fecha_factura ?? null}, ${r.mes_factura ?? null}, ${r.estado_pago ?? 'na'}, ${'aprobado'})
+             ${r.costo_cliente || 0}, ${r.costo_real || 0}, ${r.factura ?? null}, ${r.fecha_factura ?? null}, ${r.mes_factura ?? null}, ${r.estado_pago ?? 'na'}, ${'aprobado'}, ${'fauna_rd'})
         `;
       }
       console.log(`✓ Auto-seed: ${data.length} cotizaciones cargadas desde fauna_seed.json`);

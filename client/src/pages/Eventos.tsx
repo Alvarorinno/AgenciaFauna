@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { getCotizaciones, createCotizacion, updateCotizacion, deleteCotizacion } from '../api';
-import type { Cotizacion, EstadoPago } from '../types';
+import type { Cotizacion, EstadoPago, LineaNegocio } from '../types';
 import { MESES } from '../types';
 import { formatCLP, capitalize } from '../utils';
 import CotizacionDetalle from '../components/CotizacionDetalle';
@@ -15,7 +15,9 @@ const ESTADO_BADGE: Record<EstadoPago, { label: string; bg: string; text: string
   na: { label: '—', bg: '#eceae4', text: '#8a8f9c' }
 };
 
-export default function Eventos() {
+const LINEA_LABELS: Record<LineaNegocio, string> = { fauna_rd: 'Fauna RD', agencia: 'Agencia' };
+
+export default function Eventos({ linea }: { linea: LineaNegocio }) {
   const { user } = useAuth();
   const [rows, setRows] = useState<Cotizacion[]>([]);
   const [loading, setLoading] = useState(true);
@@ -31,15 +33,18 @@ export default function Eventos() {
   }
 
   // El rol 'todos' (Dirección) es de solo lectura: ve ambas secciones pero no edita nada.
-  const canEditEncargado = user?.role === 'encargado';
+  // Finanzas edita los campos financieros globalmente (en ambas líneas); un 'encargado'
+  // solo edita/borra en su propia línea de negocio.
+  const canEditEncargado = user?.role === 'encargado' && user.linea_negocio === linea;
   const canEditFinanzas = user?.role === 'finanzas';
-  const canDelete = user?.role === 'encargado';
+  const canDelete = canEditEncargado;
 
   useEffect(() => {
+    setLoading(true);
     getCotizaciones()
-      .then(data => { setRows(data.filter(r => r.estado_cotizacion === 'aprobado')); setLoading(false); })
+      .then(data => { setRows(data.filter(r => r.estado_cotizacion === 'aprobado' && r.linea_negocio === linea)); setLoading(false); })
       .catch(() => setLoading(false));
-  }, []);
+  }, [linea]);
 
   const clientes = useMemo(() => Array.from(new Set(rows.map(r => r.cliente).filter(Boolean))).sort(), [rows]);
   const aCargos = useMemo(() => Array.from(new Set(rows.map(r => r.a_cargo).filter(Boolean))).sort(), [rows]);
@@ -93,9 +98,10 @@ export default function Eventos() {
 
   return (
     <div>
-      <h1 className="title-serif font-semibold" style={{ fontSize: 24, color: '#12192b' }}>Eventos / Proyectos</h1>
+      <h1 className="title-serif font-semibold" style={{ fontSize: 24, color: '#12192b' }}>Eventos / Proyectos — {LINEA_LABELS[linea]}</h1>
       <p className="mb-5" style={{ fontSize: 13.5, color: '#5b5f6b' }}>
-        {user?.role === 'encargado' && 'Puedes editar los datos de cuenta; la sección Finanzas es de solo lectura.'}
+        {user?.role === 'encargado' && canEditEncargado && 'Puedes editar los datos de cuenta; la sección Finanzas es de solo lectura.'}
+        {user?.role === 'encargado' && !canEditEncargado && 'Acceso de solo lectura: esta línea de negocio no está a tu cargo.'}
         {user?.role === 'finanzas' && 'Puedes editar la sección Finanzas; los datos de cuenta son de solo lectura.'}
         {user?.role === 'todos' && 'Acceso de solo lectura a ambas secciones.'}
       </p>

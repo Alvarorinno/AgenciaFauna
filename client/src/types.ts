@@ -1,5 +1,7 @@
 export type Role = 'encargado' | 'finanzas' | 'todos';
 
+export type LineaNegocio = 'fauna_rd' | 'agencia';
+
 export type EstadoPago = 'pagado' | 'saldo' | 'na';
 
 export type EstadoCotizacion = 'pendiente' | 'aprobado' | 'rechazado';
@@ -60,6 +62,7 @@ export interface Cotizacion {
   editing?: boolean;
   grupos: CotizacionGrupo[];
   tiene_detalle: boolean;
+  linea_negocio: LineaNegocio;
 }
 
 export interface User {
@@ -67,6 +70,7 @@ export interface User {
   username: string;
   role: Role;
   nombre: string;
+  linea_negocio: LineaNegocio | null;
 }
 
 export interface MesVentas {
