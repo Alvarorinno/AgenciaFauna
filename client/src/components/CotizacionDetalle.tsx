@@ -275,6 +275,16 @@ export default function CotizacionDetalle({ cotizacion, canEdit, onCotizacionUpd
           </table>
         </div>
       ))}
+
+      {canEdit && cotizacion.grupos.length > 0 && (
+        <button
+          onClick={handleAddGrupo}
+          disabled={busy}
+          style={{ background: '#f7f0dd', color: '#8a6a1f', padding: '8px 14px', borderRadius: 7, fontSize: 12.5, fontWeight: 700, border: '1px dashed #c8a24a' }}
+        >
+          + Agregar otro proveedor (nuevo grupo/empresa)
+        </button>
+      )}
     </div>
   );
 }
