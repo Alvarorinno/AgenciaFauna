@@ -84,6 +84,12 @@ export interface ClienteAgg {
   utilidad: number;
 }
 
+export interface LineaStats {
+  totalCotizado: number;
+  totalUtilidad: number;
+  saldoPorFacturar: number;
+}
+
 export interface Stats {
   totalCotizado: number;
   totalUtilidad: number;
@@ -93,6 +99,7 @@ export interface Stats {
   ventasPorCliente: ClienteAgg[];
   utilidadPorCliente: ClienteAgg[];
   facturacionPorEstado: Record<EstadoPago, { count: number; monto: number }>;
+  porLinea: Record<LineaNegocio, LineaStats>;
 }
 
 export const MESES = [

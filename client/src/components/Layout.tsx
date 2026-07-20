@@ -2,7 +2,7 @@ import { ReactNode } from 'react';
 import { useAuth } from '../context/AuthContext';
 import type { LineaNegocio } from '../types';
 
-type Page = 'dashboard' | 'cotizaciones' | 'eventos';
+type Page = 'general' | 'dashboard' | 'cotizaciones' | 'eventos';
 
 interface Props {
   page: Page;
@@ -59,6 +59,32 @@ export default function Layout({ page, setPage, linea, setLinea, children }: Pro
         <div style={{ borderTop: '1px solid #2a3248' }} />
 
         <nav className="flex-1 p-4 space-y-4 overflow-auto">
+          <div>
+            <p
+              className="uppercase"
+              style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.6, color: '#6a7185', padding: '0 14px', marginBottom: 6 }}
+            >
+              General
+            </p>
+            <div className="space-y-1">
+              <button
+                onClick={() => setPage('general')}
+                className="w-full flex items-center gap-2.5 transition-colors"
+                style={{
+                  padding: '9px 14px',
+                  borderRadius: 9,
+                  fontSize: 14,
+                  fontWeight: 600,
+                  background: page === 'general' ? '#c8a24a' : 'transparent',
+                  color: page === 'general' ? '#12192b' : '#c3c7d1'
+                }}
+              >
+                <span>🏢</span>
+                Dashboard General
+              </button>
+            </div>
+          </div>
+
           {LINEAS.map(({ id: lineaId, label: lineaLabel }) => (
             <div key={lineaId}>
               <p

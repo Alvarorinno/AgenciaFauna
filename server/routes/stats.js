@@ -19,6 +19,10 @@ router.get('/', async (req, res) => {
   const porMes = {};
   const porCliente = {};
   const porEstado = { pagado: { count: 0, monto: 0 }, saldo: { count: 0, monto: 0 }, na: { count: 0, monto: 0 } };
+  const porLinea = {
+    fauna_rd: { totalCotizado: 0, totalUtilidad: 0, saldoPorFacturar: 0 },
+    agencia: { totalCotizado: 0, totalUtilidad: 0, saldoPorFacturar: 0 }
+  };
 
   for (const r of rows) {
     const costoCliente = Number(r.costo_cliente) || 0;
@@ -28,6 +32,12 @@ router.get('/', async (req, res) => {
     totalCotizado += costoCliente;
     totalUtilidad += utilidad;
     if (r.estado_pago === 'saldo') saldoPorFacturar += costoCliente;
+
+    if (porLinea[r.linea_negocio]) {
+      porLinea[r.linea_negocio].totalCotizado += costoCliente;
+      porLinea[r.linea_negocio].totalUtilidad += utilidad;
+      if (r.estado_pago === 'saldo') porLinea[r.linea_negocio].saldoPorFacturar += costoCliente;
+    }
 
     if (r.mes) {
       if (!porMes[r.mes]) porMes[r.mes] = { mes: r.mes, ventas: 0 };
@@ -65,7 +75,8 @@ router.get('/', async (req, res) => {
     ventasPorMes,
     ventasPorCliente,
     utilidadPorCliente,
-    facturacionPorEstado: porEstado
+    facturacionPorEstado: porEstado,
+    porLinea
   });
 });
 

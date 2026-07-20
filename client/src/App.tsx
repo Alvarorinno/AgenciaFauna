@@ -2,12 +2,13 @@ import { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
+import DashboardGeneral from './pages/DashboardGeneral';
 import Cotizaciones from './pages/Cotizaciones';
 import Eventos from './pages/Eventos';
 import Layout from './components/Layout';
 import type { LineaNegocio } from './types';
 
-type Page = 'dashboard' | 'cotizaciones' | 'eventos';
+type Page = 'general' | 'dashboard' | 'cotizaciones' | 'eventos';
 
 function AppContent() {
   const { user } = useAuth();
@@ -27,6 +28,7 @@ function AppContent() {
 
   return (
     <Layout page={currentPage} setPage={setPage} linea={linea} setLinea={setLinea}>
+      {currentPage === 'general' && <DashboardGeneral />}
       {currentPage === 'dashboard' && <Dashboard linea={linea} />}
       {currentPage === 'cotizaciones' && <Cotizaciones linea={linea} />}
       {currentPage === 'eventos' && <Eventos linea={linea} />}
