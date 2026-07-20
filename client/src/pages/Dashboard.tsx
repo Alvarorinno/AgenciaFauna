@@ -3,6 +3,7 @@ import { getStats } from '../api';
 import type { Stats, LineaNegocio } from '../types';
 import StatCard from '../components/StatCard';
 import BarList from '../components/BarList';
+import ColumnChart from '../components/ColumnChart';
 import { formatCLP, capitalize } from '../utils';
 
 const LINEA_LABELS: Record<LineaNegocio, string> = { fauna_rd: 'Fauna RD', agencia: 'Agencia' };
@@ -39,11 +40,11 @@ export default function Dashboard({ linea }: { linea: LineaNegocio }) {
       </div>
 
       <div className="grid mb-6" style={{ gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-        <BarList
+        <ColumnChart
           title="Ventas por Mes"
           items={stats.ventasPorMes.map(m => ({ label: capitalize(m.mes), value: m.ventas, displayValue: formatCLP(m.ventas) }))}
           trackColor="#efe9df"
-          fillColor="#c8a24a"
+          barColor="#c8a24a"
         />
         <BarList
           title="Ventas por Cliente"
