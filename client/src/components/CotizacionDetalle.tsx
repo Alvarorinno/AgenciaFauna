@@ -92,16 +92,22 @@ export default function CotizacionDetalle({ cotizacion, canEdit, onCotizacionUpd
 
   function startEditItem(it: CotizacionItem) {
     setEditingItemId(it.id);
-    setDraftItem({
-      nombre: it.nombre, cantidad: it.cantidad,
-      unitario_cliente: it.unitario_cliente, unitario_costo: it.unitario_costo
-    });
+    // Celdas en blanco: el usuario escribe desde cero (el valor anterior queda
+    // solo como pista gris/placeholder). Si deja algo sin tocar, saveItem
+    // rellena con el valor original al guardar.
+    setDraftItem({});
   }
 
-  async function saveItem(id: number) {
+  async function saveItem(id: number, original: CotizacionItem) {
     setBusy(true);
     try {
-      await updateItem(id, draftItem);
+      const payload = {
+        nombre: draftItem.nombre !== undefined && draftItem.nombre !== '' ? draftItem.nombre : original.nombre,
+        cantidad: draftItem.cantidad !== undefined ? draftItem.cantidad : original.cantidad,
+        unitario_cliente: draftItem.unitario_cliente !== undefined ? draftItem.unitario_cliente : original.unitario_cliente,
+        unitario_costo: draftItem.unitario_costo !== undefined ? draftItem.unitario_costo : original.unitario_costo
+      };
+      await updateItem(id, payload);
       setEditingItemId(null);
       await refresh();
     } catch (err) {
@@ -224,27 +230,32 @@ export default function CotizacionDetalle({ cotizacion, canEdit, onCotizacionUpd
                   </tr>
 
                   {/* Ítems */}
-                  {g.items.map(it => (
+                  {g.items.map(it => {
+                    const isEditingItem = editingItemId === it.id;
+                    const dblClick = canEdit && !isEditingItem ? () => startEditItem(it) : undefined;
+                    const dblClickTitle = canEdit && !isEditingItem ? 'Doble click para editar' : undefined;
+                    const dblClickStyle: React.CSSProperties = canEdit && !isEditingItem ? { cursor: 'text' } : {};
+                    return (
                     <tr key={it.id} style={{ borderTop: '1px solid #efe9df' }}>
-                      <td style={detCellStyle}>
-                        {editingItemId === it.id ? (
-                          <input style={inputStyle} value={draftItem.nombre ?? ''} onChange={e => setDraftItem(d => ({ ...d, nombre: e.target.value }))} />
+                      <td style={{ ...detCellStyle, ...dblClickStyle }} onDoubleClick={dblClick} title={dblClickTitle}>
+                        {isEditingItem ? (
+                          <input autoFocus style={inputStyle} value={draftItem.nombre ?? ''} placeholder={it.nombre} onChange={e => setDraftItem(d => ({ ...d, nombre: e.target.value }))} />
                         ) : it.nombre}
                       </td>
-                      <td style={detCellStyle}>
-                        {editingItemId === it.id ? (
-                          <input type="number" style={inputStyle} value={draftItem.cantidad ?? 0} onChange={e => setDraftItem(d => ({ ...d, cantidad: Number(e.target.value) }))} />
+                      <td style={{ ...detCellStyle, ...dblClickStyle }} onDoubleClick={dblClick} title={dblClickTitle}>
+                        {isEditingItem ? (
+                          <input type="number" style={inputStyle} value={draftItem.cantidad ?? ''} placeholder={String(it.cantidad)} onChange={e => setDraftItem(d => ({ ...d, cantidad: e.target.value === '' ? undefined : Number(e.target.value) }))} />
                         ) : it.cantidad}
                       </td>
-                      <td style={{ ...detCellStyle, background: CLIENTE_BG }}>
-                        {editingItemId === it.id ? (
-                          <input type="number" style={inputStyle} value={draftItem.unitario_cliente ?? 0} onChange={e => setDraftItem(d => ({ ...d, unitario_cliente: Number(e.target.value) }))} />
+                      <td style={{ ...detCellStyle, ...dblClickStyle, background: CLIENTE_BG }} onDoubleClick={dblClick} title={dblClickTitle}>
+                        {isEditingItem ? (
+                          <input type="number" style={inputStyle} value={draftItem.unitario_cliente ?? ''} placeholder={String(it.unitario_cliente)} onChange={e => setDraftItem(d => ({ ...d, unitario_cliente: e.target.value === '' ? undefined : Number(e.target.value) }))} />
                         ) : formatCLP(it.unitario_cliente)}
                       </td>
                       <td style={{ ...detCellStyle, background: CLIENTE_BG, color: CLIENTE_TEXT }}>{formatCLP(it.subtotal_cliente)}</td>
-                      <td style={{ ...detCellStyle, background: COSTO_BG }}>
-                        {editingItemId === it.id ? (
-                          <input type="number" style={inputStyle} value={draftItem.unitario_costo ?? 0} onChange={e => setDraftItem(d => ({ ...d, unitario_costo: Number(e.target.value) }))} />
+                      <td style={{ ...detCellStyle, ...dblClickStyle, background: COSTO_BG }} onDoubleClick={dblClick} title={dblClickTitle}>
+                        {isEditingItem ? (
+                          <input type="number" style={inputStyle} value={draftItem.unitario_costo ?? ''} placeholder={String(it.unitario_costo)} onChange={e => setDraftItem(d => ({ ...d, unitario_costo: e.target.value === '' ? undefined : Number(e.target.value) }))} />
                         ) : formatCLP(it.unitario_costo)}
                       </td>
                       <td style={{ ...detCellStyle, background: COSTO_BG, color: COSTO_TEXT }}>{formatCLP(it.subtotal_costo)}</td>
@@ -254,17 +265,16 @@ export default function CotizacionDetalle({ cotizacion, canEdit, onCotizacionUpd
                       {canEdit && (
                         <td style={detCellStyle}>
                           <div className="flex items-center gap-1.5">
-                            {editingItemId === it.id ? (
-                              <button onClick={() => saveItem(it.id)} title="Guardar" style={iconBtnStyle('#dcecdf', '#1f7a4d')}>✓</button>
-                            ) : (
-                              <button onClick={() => startEditItem(it)} title="Editar ítem" style={iconBtnStyle('#e2e9f5', '#2c4a7c')}>✎</button>
+                            {isEditingItem && (
+                              <button onClick={() => saveItem(it.id, it)} title="Guardar" style={iconBtnStyle('#dcecdf', '#1f7a4d')}>✓</button>
                             )}
                             <button onClick={() => handleDeleteItem(it.id)} title="Eliminar ítem" style={iconBtnStyle('#f6e4e6', '#6d2632')}>🗑</button>
                           </div>
                         </td>
                       )}
                     </tr>
-                  ))}
+                    );
+                  })}
 
                   {canEdit && (
                     <tr style={{ borderTop: '1px solid #efe9df' }}>
