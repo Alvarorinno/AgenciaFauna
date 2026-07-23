@@ -262,10 +262,8 @@ router.get('/cotizaciones/:id/pdf-cliente', async (req, res) => {
     const gItems = itemsByGrupo[g.id] || [];
     if (gItems.length === 0) continue;
 
-    ensureSpace(doc, 60);
-    doc.rect(40, doc.y, 515, 20).fill(COLORS.tinta);
-    doc.fillColor('#fff').fontSize(10.5).text(g.nombre || 'Sin nombre', 46, doc.y - 15.5, { width: 500 });
-    doc.moveDown(0.6);
+    ensureSpace(doc, 45);
+    sectionHeader(doc, g.nombre);
 
     tableHeader(doc, ['Descripción', 'Cant.', 'Unitario', 'Subtotal'], [260, 60, 95, 100]);
 
@@ -340,10 +338,8 @@ router.get('/grupos/:id/pdf-oc', async (req, res) => {
   doc.text(`Fecha: ${new Date().toLocaleDateString('es-CL')}`);
   doc.moveDown(1);
 
-  ensureSpace(doc, 60);
-  doc.rect(40, doc.y, 515, 20).fill(COLORS.tinta);
-  doc.fillColor('#fff').fontSize(10.5).text(grupo.nombre || 'Detalle', 46, doc.y - 15.5, { width: 500 });
-  doc.moveDown(0.6);
+  ensureSpace(doc, 45);
+  sectionHeader(doc, grupo.nombre || 'Detalle');
 
   tableHeader(doc, ['Descripción', 'Cant.', 'Costo Unit.', 'Subtotal'], [260, 60, 95, 100]);
 
@@ -393,6 +389,18 @@ function drawHeader(doc, title, subtitle) {
   doc.moveDown(1.5);
   doc.moveTo(40, doc.y).lineTo(555, doc.y).strokeColor('#dfd8c8').lineWidth(1).stroke();
   doc.moveDown(0.8);
+}
+
+// Encabezado de sección (nombre de proveedor/grupo). Antes se dibujaba una barra
+// sólida negra por cada grupo, lo que quedaba desordenado apenas había más de un
+// proveedor. Ahora es solo texto en negrita con una línea fina debajo — la única
+// barra de color sólido del documento queda reservada para el encabezado general.
+function sectionHeader(doc, label) {
+  doc.fontSize(11.5).fillColor(COLORS.tinta).font('Helvetica-Bold').text(label || 'Sin nombre', 40, doc.y, { width: 515 });
+  doc.font('Helvetica');
+  doc.moveDown(0.3);
+  doc.moveTo(40, doc.y).lineTo(555, doc.y).strokeColor(COLORS.laton).lineWidth(1.2).stroke();
+  doc.moveDown(0.5);
 }
 
 function tableHeader(doc, labels, widths) {
