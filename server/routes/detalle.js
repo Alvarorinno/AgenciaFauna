@@ -247,14 +247,15 @@ router.get('/cotizaciones/:id/pdf-cliente', async (req, res) => {
   res.setHeader('Content-Disposition', `attachment; filename="cotizacion-${formatNCot(cot.n_cot || cot.id, cot.linea_negocio)}.pdf"`);
   doc.pipe(res);
 
-  drawHeader(doc, 'COTIZACIÓN');
+  drawHeader(doc, 'COTIZACIÓN', [
+    `N° Cotización: ${formatNCot(cot.n_cot ?? cot.id, cot.linea_negocio)}`,
+    `Cliente: ${cot.cliente || '—'}`,
+    `Fecha: ${new Date().toLocaleDateString('es-CL')}`
+  ]);
 
   doc.fontSize(10).fillColor(COLORS.tinta);
-  doc.text(`N° Cotización: ${formatNCot(cot.n_cot ?? cot.id, cot.linea_negocio)}`, 40, doc.y + 6);
-  doc.text(`Cliente: ${cot.cliente || '—'}`);
-  doc.text(`Proyecto: ${cot.proyecto || '—'}`);
+  doc.text(`Proyecto: ${cot.proyecto || '—'}`, 40, doc.y + 6);
   if (cot.descripcion) doc.text(`Descripción: ${cot.descripcion}`);
-  doc.text(`Fecha: ${new Date().toLocaleDateString('es-CL')}`);
   doc.moveDown(1);
 
   let granTotal = 0;
@@ -380,8 +381,14 @@ function drawHeader(doc, title, subtitle) {
   const leftBottomY = doc.y; // fin del bloque de datos de la empresa (columna izquierda)
 
   doc.fontSize(18).fillColor(COLORS.laton).font('Helvetica-Bold').text(title, 40, 40, { width: 515, align: 'right' });
-  if (subtitle) {
-    doc.fontSize(10).fillColor(COLORS.tinta).font('Helvetica-Bold').text(subtitle, 40, doc.y + 2, { width: 515, align: 'right' });
+  // subtitle puede ser un string (una línea, ej. OC) o un array de líneas
+  // (ej. cotización cliente: N° Cotización / Cliente / Fecha, apiladas debajo del título).
+  const subtitleLines = Array.isArray(subtitle) ? subtitle : (subtitle ? [subtitle] : []);
+  if (subtitleLines.length) {
+    doc.fontSize(10).fillColor(COLORS.tinta).font('Helvetica-Bold');
+    for (const line of subtitleLines) {
+      doc.text(line, 40, doc.y + 2, { width: 515, align: 'right' });
+    }
   }
   doc.font('Helvetica');
 
