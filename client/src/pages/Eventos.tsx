@@ -97,9 +97,9 @@ export default function Eventos({ linea }: { linea: LineaNegocio }) {
   const financeInputStyle: React.CSSProperties = { ...inputStyle, border: '1px solid #e8dcbd', background: '#faf3e2' };
 
   return (
-    <div>
-      <h1 className="title-serif font-semibold" style={{ fontSize: 24, color: '#12192b' }}>Eventos / Proyectos — {LINEA_LABELS[linea]}</h1>
-      <p className="mb-5" style={{ fontSize: 13.5, color: '#5b5f6b' }}>
+    <div className="flex flex-col" style={{ height: 'calc(100vh - 56px)' }}>
+      <h1 className="title-serif font-semibold shrink-0" style={{ fontSize: 24, color: '#12192b' }}>Eventos / Proyectos — {LINEA_LABELS[linea]}</h1>
+      <p className="mb-5 shrink-0" style={{ fontSize: 13.5, color: '#5b5f6b' }}>
         {user?.role === 'encargado' && canEditEncargado && 'Puedes editar los datos de cuenta; la sección Finanzas es de solo lectura.'}
         {user?.role === 'encargado' && !canEditEncargado && 'Acceso de solo lectura: esta línea de negocio no está a tu cargo.'}
         {user?.role === 'finanzas' && 'Puedes editar la sección Finanzas; los datos de cuenta son de solo lectura.'}
@@ -107,7 +107,7 @@ export default function Eventos({ linea }: { linea: LineaNegocio }) {
       </p>
 
       {/* Filters */}
-      <div className="flex flex-wrap items-end mb-5" style={{ gap: 14 }}>
+      <div className="flex flex-wrap items-end mb-5 shrink-0" style={{ gap: 14 }}>
         <FilterSelect label="Mes" value={filters.mes} onChange={v => setFilters(f => ({ ...f, mes: v }))}
           options={['todos', ...MESES]} display={v => v === 'todos' ? 'Todos' : capitalize(v)} />
         <FilterSelect label="Cliente" value={filters.cliente} onChange={v => setFilters(f => ({ ...f, cliente: v }))}
@@ -129,7 +129,7 @@ export default function Eventos({ linea }: { linea: LineaNegocio }) {
       </div>
 
       {/* Table */}
-      <div className="bg-white overflow-x-auto" style={{ border: '1px solid #dfd8c8', borderRadius: 12 }}>
+      <div className="bg-white" style={{ border: '1px solid #dfd8c8', borderRadius: 12, flex: 1, minHeight: 0, overflow: 'auto' }}>
         <table style={{ minWidth: 1540, width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr>
