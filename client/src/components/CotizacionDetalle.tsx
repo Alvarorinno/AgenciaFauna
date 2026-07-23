@@ -335,7 +335,7 @@ export default function CotizacionDetalle({ cotizacion, canEdit, onCotizacionUpd
                 disabled={busy}
                 style={{ background: '#eef1fb', color: '#2c3e7c', padding: '8px 14px', borderRadius: 7, fontSize: 12.5, fontWeight: 700, border: '1px dashed #6b7fc4' }}
               >
-                % Comisión de cotización
+                {Number(cotizacion.comision_pct) > 0 ? `% Comisión de cotización: ${cotizacion.comision_pct}%` : '% Comisión de cotización'}
               </button>
             )}
             {canEdit && editingComision && (
@@ -365,10 +365,15 @@ export default function CotizacionDetalle({ cotizacion, canEdit, onCotizacionUpd
               <span>Subtotal</span>
               <span>{formatCLP((cotizacion.costo_cliente || 0) - (cotizacion.comision_monto || 0))}</span>
             </div>
-            {(cotizacion.comision_monto || 0) > 0 && (
+            {Number(cotizacion.comision_pct) > 0 && (
               <div className="flex items-center justify-between" style={{ fontSize: 12.5, color: '#2c3e7c', padding: '3px 0' }}>
                 <span>Comisión Agencia ({cotizacion.comision_pct}%)</span>
-                <span>{formatCLP(cotizacion.comision_monto)}</span>
+                <span>
+                  {formatCLP(cotizacion.comision_monto)}
+                  {Number(cotizacion.comision_monto || 0) === 0 && (
+                    <span style={{ color: '#9aa0ad', fontWeight: 400 }}> (ítems ya cubren el % objetivo)</span>
+                  )}
+                </span>
               </div>
             )}
             <div className="flex items-center justify-between" style={{ fontSize: 13.5, fontWeight: 700, color: '#12192b', padding: '6px 0 0', marginTop: 4, borderTop: '1px solid #efe9df' }}>
