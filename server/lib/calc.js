@@ -60,7 +60,8 @@ export function calcComisionMonto(costoClienteBase, comisionPct) {
   const pct = Number(comisionPct) || 0;
   if (pct <= 0 || pct >= 100) return 0;
   const precioObjetivo = costoClienteBase / (1 - pct / 100);
-  return Math.max(0, precioObjetivo - costoClienteBase);
+  const monto = Math.max(0, precioObjetivo - costoClienteBase);
+  return Math.round(monto * 100) / 100;
 }
 
 // Recalcula costo_cliente (suma de lo verde/cliente + comisión de agencia) y
