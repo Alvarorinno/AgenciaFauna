@@ -68,6 +68,11 @@ export const deleteItem = async (id: number): Promise<void> => {
   await api.delete(`/detalle/items/${id}`);
 };
 
+export const updateComision = async (cotizacionId: number, comisionPct: number): Promise<Cotizacion> => {
+  const { data } = await api.put(`/detalle/cotizaciones/${cotizacionId}/comision`, { comision_pct: comisionPct });
+  return data;
+};
+
 async function downloadPdf(url: string, fallbackName: string) {
   const { data, headers } = await api.get(url, { responseType: 'blob' });
   const disposition: string | undefined = headers['content-disposition'];

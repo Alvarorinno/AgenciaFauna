@@ -2,7 +2,7 @@ import { Router } from 'express';
 import PDFDocument from 'pdfkit';
 import { sql } from '../db.js';
 import { authMiddleware } from './auth.js';
-import { withItemDerived, withGrupoDerived, recomputeTotales } from '../lib/calc.js';
+import { withDerived, withItemDerived, withGrupoDerived, recomputeTotales } from '../lib/calc.js';
 
 const router = Router();
 router.use(authMiddleware);
@@ -190,6 +190,36 @@ router.delete('/items/:id', requireEncargado, async (req, res) => {
   res.json({ ok: true });
 });
 
+// ================= COMISIÓN DE AGENCIA =================
+
+// % de utilidad del negocio a sumar por encima del costo real de los proveedores
+// (ver calcComisionMonto/recomputeTotales en lib/calc.js). Solo tiene efecto si la
+// cotización ya tiene ítems cargados (si no, recomputeTotales no toca los totales).
+router.put('/cotizaciones/:id/comision', requireEncargado, async (req, res) => {
+  const id = Number(req.params.id);
+  const linea = await checkLineaCotizacion(req, res, id);
+  if (linea === null) return;
+
+  const pct = Number(req.body.comision_pct);
+  if (!Number.isFinite(pct) || pct < 0 || pct >= 100) {
+    return res.status(400).json({ error: 'Porcentaje de comisión inválido (debe ser entre 0 y 99.9)' });
+  }
+
+  await sql`UPDATE cotizaciones SET comision_pct = ${pct}, updated_at = now() WHERE id = ${id}`;
+  await recomputeTotales(id);
+
+  const cotRows = await sql`SELECT * FROM cotizaciones WHERE id = ${id}`;
+  const grupos = await sql`SELECT * FROM cotizacion_grupos WHERE cotizacion_id = ${id} ORDER BY orden, id`;
+  const items = grupos.length
+    ? await sql`SELECT * FROM cotizacion_items WHERE grupo_id = ANY(${grupos.map(g => g.id)}) ORDER BY orden, id`
+    : [];
+  const itemsByGrupo = {};
+  for (const it of items) (itemsByGrupo[it.grupo_id] ??= []).push(withItemDerived(it));
+  const gruposOut = grupos.map(g => withGrupoDerived(g, itemsByGrupo[g.id] || []));
+
+  res.json(withDerived({ ...cotRows[0], grupos: gruposOut, tiene_detalle: gruposOut.length > 0 }));
+});
+
 // ================= PDFs =================
 // Ambos PDFs son de solo lectura para cualquier rol autenticado (mismo criterio
 // que el GET de cotizaciones: todos los roles pueden ver/descargar, solo 'encargado' edita).
@@ -260,10 +290,17 @@ router.get('/cotizaciones/:id/pdf-cliente', async (req, res) => {
     doc.moveDown(1);
   }
 
+  const comisionMonto = Number(cot.comision_monto) || 0;
+  const totalConComision = (granTotal || cot.costo_cliente) + (granTotal ? comisionMonto : 0);
+
   ensureSpace(doc, 40);
   doc.moveTo(40, doc.y).lineTo(555, doc.y).strokeColor(COLORS.laton).lineWidth(1.5).stroke();
   doc.moveDown(0.5);
-  doc.fontSize(13).fillColor(COLORS.tinta).text(`TOTAL COTIZACIÓN: ${fmtCLP(granTotal || cot.costo_cliente)}`, 40, doc.y, { width: 515, align: 'right' });
+  if (comisionMonto > 0) {
+    doc.fontSize(9.5).fillColor(COLORS.tinta).text(`Comisión Agencia: ${fmtCLP(comisionMonto)}`, 40, doc.y, { width: 515, align: 'right' });
+    doc.moveDown(0.5);
+  }
+  doc.fontSize(13).fillColor(COLORS.tinta).text(`TOTAL COTIZACIÓN: ${fmtCLP(totalConComision)}`, 40, doc.y, { width: 515, align: 'right' });
 
   doc.end();
 });

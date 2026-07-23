@@ -26,6 +26,8 @@ async function runInit() {
       descripcion TEXT,
       costo_cliente NUMERIC DEFAULT 0,
       costo_real NUMERIC DEFAULT 0,
+      comision_pct NUMERIC DEFAULT 0,
+      comision_monto NUMERIC DEFAULT 0,
       factura TEXT,
       fecha_factura TEXT,
       mes_factura TEXT,
@@ -45,6 +47,13 @@ async function runInit() {
   // hasta ahora pertenece a Fauna RD, así que el default y el backfill apuntan ahí.
   await sql`ALTER TABLE cotizaciones ADD COLUMN IF NOT EXISTS linea_negocio TEXT`;
   await sql`UPDATE cotizaciones SET linea_negocio = 'fauna_rd' WHERE linea_negocio IS NULL`;
+
+  // Comisión de agencia: % de utilidad del negocio que se suma por encima del
+  // costo real de los proveedores para llegar al margen deseado en la cotización
+  // (ver recomputeTotales en lib/calc.js). comision_monto es el monto ya calculado,
+  // guardado para no tener que recalcular en cada lectura.
+  await sql`ALTER TABLE cotizaciones ADD COLUMN IF NOT EXISTS comision_pct NUMERIC DEFAULT 0`;
+  await sql`ALTER TABLE cotizaciones ADD COLUMN IF NOT EXISTS comision_monto NUMERIC DEFAULT 0`;
 
   // Detalle de proveedores por cotización: grupos (una partida por proveedor,
   // ej. "ADHESIVO SERVICIO TÉCNICO") con sus líneas de ítem (cantidad/unidad/días/precios).

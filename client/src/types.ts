@@ -50,6 +50,8 @@ export interface Cotizacion {
   descripcion: string;
   costo_cliente: number;
   costo_real: number;
+  comision_pct: number;
+  comision_monto: number;
   utilidad: number;
   pct_utilidad: number;
   factura: string | null;

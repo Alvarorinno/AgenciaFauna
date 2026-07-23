@@ -46,10 +46,26 @@ export function withGrupoDerived(g, items) {
   };
 }
 
-// Recalcula costo_cliente (suma de lo verde/cliente) y costo_real (suma de lo celeste/costo)
-// de una cotización a partir de todos los ítems de todos sus grupos de proveedores.
-// Si la cotización no tiene ningún grupo (sin detalle cargado), no toca los totales:
-// siguen siendo editables a mano como antes de este upgrade.
+// Dado el costo real total y lo que ya suman los ítems al cliente (antes de
+// comisión), calcula el monto de "Comisión Agencia" a sumar para que la
+// cotización alcance el % de utilidad deseado (comisionPct) sobre el total.
+//
+// Ej: costo real 990, comisionPct 10 → precio objetivo = 990 / (1 - 0.10) = 1100,
+// comisión = 1100 - 990 = 110 (si los ítems ya sumaban 990 al cliente, sin margen propio).
+// Nunca es negativa: si los ítems ya facturan al cliente por encima del objetivo,
+// la comisión adicional es 0 (no se resta lo que el encargado ya cotizó).
+export function calcComisionMonto(costoReal, costoClienteBase, comisionPct) {
+  const pct = Number(comisionPct) || 0;
+  if (pct <= 0 || pct >= 100) return 0;
+  const precioObjetivo = costoReal / (1 - pct / 100);
+  return Math.max(0, precioObjetivo - costoClienteBase);
+}
+
+// Recalcula costo_cliente (suma de lo verde/cliente + comisión de agencia) y
+// costo_real (suma de lo celeste/costo) de una cotización a partir de todos
+// los ítems de todos sus grupos de proveedores.
+// Si la cotización no tiene ningún grupo (sin detalle cargado), no toca los
+// totales: siguen siendo editables a mano como antes de este upgrade.
 export async function recomputeTotales(cotizacionId) {
   const items = await sql`
     SELECT i.cantidad, i.unitario_cliente, i.unitario_costo
@@ -59,17 +75,21 @@ export async function recomputeTotales(cotizacionId) {
   `;
   if (items.length === 0) return;
 
-  let costoCliente = 0;
+  let costoClienteBase = 0;
   let costoReal = 0;
   for (const it of items) {
     const cantidad = Number(it.cantidad) || 0;
-    costoCliente += cantidad * (Number(it.unitario_cliente) || 0);
+    costoClienteBase += cantidad * (Number(it.unitario_cliente) || 0);
     costoReal += cantidad * (Number(it.unitario_costo) || 0);
   }
 
+  const [{ comision_pct: comisionPctRaw }] = await sql`SELECT comision_pct FROM cotizaciones WHERE id = ${cotizacionId}`;
+  const comisionMonto = calcComisionMonto(costoReal, costoClienteBase, comisionPctRaw);
+  const costoCliente = costoClienteBase + comisionMonto;
+
   await sql`
     UPDATE cotizaciones
-    SET costo_cliente = ${costoCliente}, costo_real = ${costoReal}, updated_at = now()
+    SET costo_cliente = ${costoCliente}, costo_real = ${costoReal}, comision_monto = ${comisionMonto}, updated_at = now()
     WHERE id = ${cotizacionId}
   `;
 }

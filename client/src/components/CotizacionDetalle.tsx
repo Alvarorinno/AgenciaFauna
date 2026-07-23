@@ -3,7 +3,8 @@ import type { Cotizacion, CotizacionGrupo, CotizacionItem } from '../types';
 import {
   createGrupo, updateGrupo, deleteGrupo,
   createItem, updateItem, deleteItem,
-  getCotizaciones, downloadCotizacionClientePdf, downloadGrupoOcPdf
+  getCotizaciones, downloadCotizacionClientePdf, downloadGrupoOcPdf,
+  updateComision
 } from '../api';
 import { formatCLP } from '../utils';
 
@@ -24,6 +25,8 @@ export default function CotizacionDetalle({ cotizacion, canEdit, onCotizacionUpd
   const [editingItemId, setEditingItemId] = useState<number | null>(null);
   const [draftGrupo, setDraftGrupo] = useState<Partial<CotizacionGrupo>>({});
   const [draftItem, setDraftItem] = useState<Partial<CotizacionItem>>({});
+  const [editingComision, setEditingComision] = useState(false);
+  const [draftComisionPct, setDraftComisionPct] = useState('');
 
   async function refresh() {
     const all = await getCotizaciones();
@@ -127,6 +130,30 @@ export default function CotizacionDetalle({ cotizacion, canEdit, onCotizacionUpd
     } catch (err) {
       console.error('Error al eliminar el ítem:', err);
       alert('No se pudo eliminar el ítem. Intenta de nuevo.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function startEditComision() {
+    setDraftComisionPct('');
+    setEditingComision(true);
+  }
+
+  async function saveComision() {
+    const pct = draftComisionPct === '' ? 0 : Number(draftComisionPct);
+    if (!Number.isFinite(pct) || pct < 0 || pct >= 100) {
+      alert('El % de comisión debe ser un número entre 0 y 99.9');
+      return;
+    }
+    setBusy(true);
+    try {
+      await updateComision(cotizacion.id, pct);
+      setEditingComision(false);
+      await refresh();
+    } catch (err) {
+      console.error('Error al guardar la comisión:', err);
+      alert('No se pudo guardar la comisión. Intenta de nuevo.');
     } finally {
       setBusy(false);
     }
@@ -290,14 +317,66 @@ export default function CotizacionDetalle({ cotizacion, canEdit, onCotizacionUpd
         </div>
       )}
 
-      {canEdit && cotizacion.grupos.length > 0 && (
-        <button
-          onClick={handleAddGrupo}
-          disabled={busy}
-          style={{ background: '#f7f0dd', color: '#8a6a1f', padding: '8px 14px', borderRadius: 7, fontSize: 12.5, fontWeight: 700, border: '1px dashed #c8a24a' }}
-        >
-          + Agregar otro proveedor (nuevo grupo/empresa)
-        </button>
+      {cotizacion.grupos.length > 0 && (
+        <div className="flex items-center justify-between" style={{ marginBottom: 12 }}>
+          <div className="flex items-center gap-2">
+            {canEdit && (
+              <button
+                onClick={handleAddGrupo}
+                disabled={busy}
+                style={{ background: '#f7f0dd', color: '#8a6a1f', padding: '8px 14px', borderRadius: 7, fontSize: 12.5, fontWeight: 700, border: '1px dashed #c8a24a' }}
+              >
+                + Agregar otro proveedor (nuevo grupo/empresa)
+              </button>
+            )}
+            {canEdit && !editingComision && (
+              <button
+                onClick={startEditComision}
+                disabled={busy}
+                style={{ background: '#eef1fb', color: '#2c3e7c', padding: '8px 14px', borderRadius: 7, fontSize: 12.5, fontWeight: 700, border: '1px dashed #6b7fc4' }}
+              >
+                % Comisión de cotización
+              </button>
+            )}
+            {canEdit && editingComision && (
+              <div className="flex items-center gap-1.5" style={{ background: '#eef1fb', padding: '6px 10px', borderRadius: 7, border: '1px dashed #6b7fc4' }}>
+                <span style={{ fontSize: 12.5, color: '#2c3e7c', fontWeight: 600 }}>% utilidad objetivo:</span>
+                <input
+                  autoFocus
+                  type="number"
+                  style={{ ...inputStyle, width: 80 }}
+                  value={draftComisionPct}
+                  placeholder={String(cotizacion.comision_pct ?? 0)}
+                  onChange={e => setDraftComisionPct(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') saveComision(); if (e.key === 'Escape') setEditingComision(false); }}
+                />
+                <button onClick={saveComision} disabled={busy} title="Guardar" style={iconBtnStyle('#dcecdf', '#1f7a4d')}>✓</button>
+                <button onClick={() => setEditingComision(false)} disabled={busy} title="Cancelar" style={iconBtnStyle('#f6e4e6', '#6d2632')}>✕</button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {cotizacion.grupos.length > 0 && (
+        <div className="flex justify-end" style={{ marginBottom: 6 }}>
+          <div style={{ minWidth: 280, background: '#fff', border: '1px solid #dfd8c8', borderRadius: 10, padding: '10px 16px' }}>
+            <div className="flex items-center justify-between" style={{ fontSize: 12.5, color: '#12192b', padding: '3px 0' }}>
+              <span>Subtotal</span>
+              <span>{formatCLP((cotizacion.costo_cliente || 0) - (cotizacion.comision_monto || 0))}</span>
+            </div>
+            {(cotizacion.comision_monto || 0) > 0 && (
+              <div className="flex items-center justify-between" style={{ fontSize: 12.5, color: '#2c3e7c', padding: '3px 0' }}>
+                <span>Comisión Agencia ({cotizacion.comision_pct}%)</span>
+                <span>{formatCLP(cotizacion.comision_monto)}</span>
+              </div>
+            )}
+            <div className="flex items-center justify-between" style={{ fontSize: 13.5, fontWeight: 700, color: '#12192b', padding: '6px 0 0', marginTop: 4, borderTop: '1px solid #efe9df' }}>
+              <span>Total Cotización</span>
+              <span>{formatCLP(cotizacion.costo_cliente)}</span>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
