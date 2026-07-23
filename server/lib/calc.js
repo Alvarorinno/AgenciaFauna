@@ -46,18 +46,20 @@ export function withGrupoDerived(g, items) {
   };
 }
 
-// Dado el costo real total y lo que ya suman los ítems al cliente (antes de
-// comisión), calcula el monto de "Comisión Agencia" a sumar para que la
-// cotización alcance el % de utilidad deseado (comisionPct) sobre el total.
+// Dado lo que ya suman los ítems al cliente (subtotal, antes de comisión),
+// calcula el monto de "Comisión Agencia" a sumar para que la cotización
+// alcance el % de utilidad del negocio deseado (comisionPct) sobre el total
+// final (subtotal + comisión) — no sobre el costo real de los proveedores.
 //
-// Ej: costo real 990, comisionPct 10 → precio objetivo = 990 / (1 - 0.10) = 1100,
-// comisión = 1100 - 990 = 110 (si los ítems ya sumaban 990 al cliente, sin margen propio).
-// Nunca es negativa: si los ítems ya facturan al cliente por encima del objetivo,
-// la comisión adicional es 0 (no se resta lo que el encargado ya cotizó).
-export function calcComisionMonto(costoReal, costoClienteBase, comisionPct) {
+// Ej: subtotal (ítems al cliente) 10.000, comisionPct 10
+//   → precio objetivo = 10.000 / (1 - 0.10) = 11.111
+//   → comisión = 11.111 - 10.000 = 1.111
+// Con pct entre 0 y 100 (exclusivo) el resultado siempre es >= 0: nunca se
+// resta lo que el encargado ya cotizó, solo se suma la comisión adicional.
+export function calcComisionMonto(costoClienteBase, comisionPct) {
   const pct = Number(comisionPct) || 0;
   if (pct <= 0 || pct >= 100) return 0;
-  const precioObjetivo = costoReal / (1 - pct / 100);
+  const precioObjetivo = costoClienteBase / (1 - pct / 100);
   return Math.max(0, precioObjetivo - costoClienteBase);
 }
 
@@ -84,7 +86,7 @@ export async function recomputeTotales(cotizacionId) {
   }
 
   const [{ comision_pct: comisionPctRaw }] = await sql`SELECT comision_pct FROM cotizaciones WHERE id = ${cotizacionId}`;
-  const comisionMonto = calcComisionMonto(costoReal, costoClienteBase, comisionPctRaw);
+  const comisionMonto = calcComisionMonto(costoClienteBase, comisionPctRaw);
   const costoCliente = costoClienteBase + comisionMonto;
 
   await sql`

@@ -192,9 +192,10 @@ router.delete('/items/:id', requireEncargado, async (req, res) => {
 
 // ================= COMISIÓN DE AGENCIA =================
 
-// % de utilidad del negocio a sumar por encima del costo real de los proveedores
-// (ver calcComisionMonto/recomputeTotales en lib/calc.js). Solo tiene efecto si la
-// cotización ya tiene ítems cargados (si no, recomputeTotales no toca los totales).
+// % de utilidad del negocio a sumar por encima del subtotal que los ítems ya
+// cobran al cliente (ver calcComisionMonto/recomputeTotales en lib/calc.js).
+// Solo tiene efecto si la cotización ya tiene ítems cargados (si no,
+// recomputeTotales no toca los totales).
 router.put('/cotizaciones/:id/comision', requireEncargado, async (req, res) => {
   const id = Number(req.params.id);
   const linea = await checkLineaCotizacion(req, res, id);
