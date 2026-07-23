@@ -290,16 +290,19 @@ router.get('/cotizaciones/:id/pdf-cliente', async (req, res) => {
   }
 
   const comisionMonto = Number(cot.comision_monto) || 0;
-  const totalConComision = (granTotal || cot.costo_cliente) + (granTotal ? comisionMonto : 0);
+  const subtotalNeto = granTotal || cot.costo_cliente;
+  const totalNeto = subtotalNeto + (granTotal ? comisionMonto : 0);
+  const iva = totalNeto * 0.19;
+  const totalClp = totalNeto + iva;
 
-  ensureSpace(doc, 40);
-  doc.moveTo(40, doc.y).lineTo(555, doc.y).strokeColor(COLORS.laton).lineWidth(1.5).stroke();
-  doc.moveDown(0.5);
-  if (comisionMonto > 0) {
-    doc.fontSize(9.5).fillColor(COLORS.tinta).text(`Comisión Agencia: ${fmtCLP(comisionMonto)}`, 40, doc.y, { width: 515, align: 'right' });
-    doc.moveDown(0.5);
-  }
-  doc.fontSize(13).fillColor(COLORS.tinta).text(`TOTAL COTIZACIÓN: ${fmtCLP(totalConComision)}`, 40, doc.y, { width: 515, align: 'right' });
+  drawTotalsFooter(doc, {
+    subtotalNeto,
+    comisionMonto: granTotal ? comisionMonto : 0,
+    comisionPct: Number(cot.comision_pct) || 0,
+    totalNeto,
+    iva,
+    totalClp
+  });
 
   doc.end();
 });
@@ -401,6 +404,43 @@ function sectionHeader(doc, label) {
   doc.moveDown(0.3);
   doc.moveTo(40, doc.y).lineTo(555, doc.y).strokeColor(COLORS.laton).lineWidth(1.2).stroke();
   doc.moveDown(0.5);
+}
+
+// Bloque final de la cotización cliente: nota de forma de pago/validez a la
+// izquierda + desglose de totales (neto, comisión, IVA, total con IVA) a la
+// derecha, sobre un fondo gris — reemplaza la línea simple de "TOTAL COTIZACIÓN".
+function drawTotalsFooter(doc, { subtotalNeto, comisionMonto, comisionPct, totalNeto, iva, totalClp }) {
+  const rows = [
+    { label: 'SUBTOTAL NETO', value: fmtCLP(subtotalNeto) },
+    ...(comisionMonto > 0 ? [{ label: `COMISIÓN AGENCIA ${comisionPct}%`, value: fmtCLP(comisionMonto) }] : []),
+    { label: 'TOTAL NETO', value: fmtCLP(totalNeto), bold: true },
+    { label: 'IVA (19%)', value: fmtCLP(iva) },
+    { label: 'TOTAL CLP', value: fmtCLP(totalClp), bold: true }
+  ];
+  const rowH = 15;
+  const boxHeight = Math.max(rows.length * rowH, 62) + 16;
+
+  ensureSpace(doc, boxHeight + 10);
+  const boxY = doc.y;
+  doc.rect(40, boxY, 515, boxHeight).fill('#c7c7c7');
+
+  // Columna izquierda: nota de forma de pago / validez
+  doc.fillColor('#12192b');
+  doc.fontSize(9).font('Helvetica-Bold').text('Nota', 50, boxY + 10, { width: 300 });
+  doc.font('Helvetica-Bold').text('Forma de pago: 50% del total anticipado, 50% contra entrega.', 50, boxY + 23, { width: 300 });
+  doc.font('Helvetica').fontSize(9).text('Validez de cotización: 15 días.', 50, boxY + 46, { width: 300 });
+
+  // Columna derecha: totales, alineados en dos sub-columnas (label / monto)
+  let rowY = boxY + 10;
+  for (const r of rows) {
+    doc.font(r.bold ? 'Helvetica-Bold' : 'Helvetica').fontSize(r.bold ? 11 : 9.5).fillColor('#12192b');
+    doc.text(r.label, 300, rowY, { width: 140, align: 'right' });
+    doc.text(r.value, 445, rowY, { width: 100, align: 'right' });
+    rowY += rowH;
+  }
+
+  doc.font('Helvetica');
+  doc.y = boxY + boxHeight + 10;
 }
 
 function tableHeader(doc, labels, widths) {
