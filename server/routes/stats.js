@@ -13,16 +13,38 @@ router.get('/', async (req, res) => {
     ? await sql`SELECT * FROM cotizaciones WHERE estado_cotizacion = 'aprobado' AND linea_negocio = ${linea}`
     : await sql`SELECT * FROM cotizaciones WHERE estado_cotizacion = 'aprobado'`;
 
+  // Conteos de KPIs que no dependen solo de las cotizaciones aprobadas:
+  // - "Proyectos" = cotizaciones aprobadas (mismo criterio que la vista Eventos).
+  // - "Cotizaciones a revisar" = cotizaciones que siguen abiertas (no rechazadas: pendiente o aprobado).
+  const conteoRows = linea
+    ? await sql`SELECT estado_cotizacion, linea_negocio FROM cotizaciones WHERE linea_negocio = ${linea}`
+    : await sql`SELECT estado_cotizacion, linea_negocio FROM cotizaciones`;
+
   let totalCotizado = 0;
   let totalUtilidad = 0;
   let saldoPorFacturar = 0;
+  let totalEventos = 0;
+  let totalCotizacionesARevisar = 0;
   const porMes = {};
   const porCliente = {};
   const porEstado = { pagado: { count: 0, monto: 0 }, saldo: { count: 0, monto: 0 }, na: { count: 0, monto: 0 } };
   const porLinea = {
-    fauna_rd: { totalCotizado: 0, totalUtilidad: 0, saldoPorFacturar: 0 },
-    agencia: { totalCotizado: 0, totalUtilidad: 0, saldoPorFacturar: 0 }
+    fauna_rd: { totalCotizado: 0, totalUtilidad: 0, saldoPorFacturar: 0, eventos: 0, cotizacionesARevisar: 0 },
+    agencia: { totalCotizado: 0, totalUtilidad: 0, saldoPorFacturar: 0, eventos: 0, cotizacionesARevisar: 0 }
   };
+
+  for (const r of conteoRows) {
+    const esAprobado = r.estado_cotizacion === 'aprobado';
+    const esNoRechazada = r.estado_cotizacion !== 'rechazado';
+
+    if (esAprobado) totalEventos += 1;
+    if (esNoRechazada) totalCotizacionesARevisar += 1;
+
+    if (porLinea[r.linea_negocio]) {
+      if (esAprobado) porLinea[r.linea_negocio].eventos += 1;
+      if (esNoRechazada) porLinea[r.linea_negocio].cotizacionesARevisar += 1;
+    }
+  }
 
   for (const r of rows) {
     const costoCliente = Number(r.costo_cliente) || 0;
@@ -72,6 +94,8 @@ router.get('/', async (req, res) => {
     totalUtilidad,
     pctUtilidadPromedio,
     saldoPorFacturar,
+    totalEventos,
+    totalCotizacionesARevisar,
     ventasPorMes,
     ventasPorCliente,
     utilidadPorCliente,

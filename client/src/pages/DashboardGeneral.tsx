@@ -38,6 +38,8 @@ export default function DashboardGeneral() {
         <StatCard label="Total Utilidad" value={formatCLP(stats.totalUtilidad)} color="#1f7a4d" />
         <StatCard label="% Utilidad Promedio" value={`${stats.pctUtilidadPromedio.toFixed(1)}%`} />
         <StatCard label="Saldo por Facturar" value={formatCLP(stats.saldoPorFacturar)} color="#8a6a1f" />
+        <StatCard label="Proyectos" value={String(stats.totalEventos)} />
+        <StatCard label="Cotizaciones a Revisar" value={String(stats.totalCotizacionesARevisar)} color="#8a6a1f" />
       </div>
 
       <div className="grid mb-6" style={{ gridTemplateColumns: '1fr 1fr', gap: 16 }}>

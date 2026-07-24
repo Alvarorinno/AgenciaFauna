@@ -89,6 +89,8 @@ export interface LineaStats {
   totalCotizado: number;
   totalUtilidad: number;
   saldoPorFacturar: number;
+  eventos: number;
+  cotizacionesARevisar: number;
 }
 
 export interface Stats {
@@ -96,6 +98,8 @@ export interface Stats {
   totalUtilidad: number;
   pctUtilidadPromedio: number;
   saldoPorFacturar: number;
+  totalEventos: number;
+  totalCotizacionesARevisar: number;
   ventasPorMes: MesVentas[];
   ventasPorCliente: ClienteAgg[];
   utilidadPorCliente: ClienteAgg[];
