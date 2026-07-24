@@ -44,7 +44,6 @@ export interface Cotizacion {
   id: number;
   n_cot: number;
   mes: string;
-  a_cargo: string;
   cliente: string;
   proyecto: string;
   descripcion: string;

@@ -7,7 +7,7 @@ const router = Router();
 router.use(authMiddleware);
 
 // Campos editables por rol (server-side, no confiar solo en el gating de la UI)
-const ENCARGADO_FIELDS = ['n_cot', 'mes', 'a_cargo', 'cliente', 'proyecto', 'descripcion', 'costo_cliente', 'costo_real', 'estado_cotizacion'];
+const ENCARGADO_FIELDS = ['n_cot', 'mes', 'cliente', 'proyecto', 'descripcion', 'costo_cliente', 'costo_real', 'estado_cotizacion'];
 const FINANCE_FIELDS = ['factura', 'fecha_factura', 'mes_factura', 'estado_pago'];
 
 // Trae los grupos+ítems de UNA cotización (usado para que las respuestas de
@@ -66,11 +66,10 @@ router.post('/', async (req, res) => {
   const lineaNegocio = req.user.linea_negocio || 'fauna_rd';
 
   const rows = await sql`
-    INSERT INTO cotizaciones (n_cot, mes, a_cargo, cliente, proyecto, descripcion, costo_cliente, costo_real, estado_pago, estado_cotizacion, linea_negocio)
+    INSERT INTO cotizaciones (n_cot, mes, cliente, proyecto, descripcion, costo_cliente, costo_real, estado_pago, estado_cotizacion, linea_negocio)
     VALUES (
       ${nCot},
       ${req.body.mes ?? 'enero'},
-      ${req.body.a_cargo ?? ''},
       ${req.body.cliente ?? ''},
       ${req.body.proyecto ?? ''},
       ${req.body.descripcion ?? ''},

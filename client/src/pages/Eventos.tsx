@@ -6,7 +6,7 @@ import { MESES } from '../types';
 import { formatCLP, capitalize, formatNCot } from '../utils';
 import CotizacionDetalle from '../components/CotizacionDetalle';
 
-const ENCARGADO_FIELDS = ['n_cot', 'mes', 'a_cargo', 'cliente', 'proyecto', 'descripcion', 'costo_cliente', 'costo_real'] as const;
+const ENCARGADO_FIELDS = ['n_cot', 'mes', 'cliente', 'proyecto', 'descripcion', 'costo_cliente', 'costo_real'] as const;
 const FINANCE_FIELDS = ['factura', 'fecha_factura', 'mes_factura', 'estado_pago'] as const;
 
 const ESTADO_BADGE: Record<EstadoPago, { label: string; bg: string; text: string }> = {
@@ -21,7 +21,7 @@ export default function Eventos({ linea }: { linea: LineaNegocio }) {
   const { user } = useAuth();
   const [rows, setRows] = useState<Cotizacion[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filters, setFilters] = useState({ mes: 'todos', cliente: 'todos', aCargo: 'todos', estadoPago: 'todos' });
+  const [filters, setFilters] = useState({ mes: 'todos', cliente: 'todos', estadoPago: 'todos' });
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
 
   function toggleExpanded(id: number) {
@@ -47,12 +47,10 @@ export default function Eventos({ linea }: { linea: LineaNegocio }) {
   }, [linea]);
 
   const clientes = useMemo(() => Array.from(new Set(rows.map(r => r.cliente).filter(Boolean))).sort(), [rows]);
-  const aCargos = useMemo(() => Array.from(new Set(rows.map(r => r.a_cargo).filter(Boolean))).sort(), [rows]);
 
   const filteredRows = rows.filter(r =>
     (filters.mes === 'todos' || r.mes === filters.mes) &&
     (filters.cliente === 'todos' || r.cliente === filters.cliente) &&
-    (filters.aCargo === 'todos' || r.a_cargo === filters.aCargo) &&
     (filters.estadoPago === 'todos' || r.estado_pago === filters.estadoPago)
   );
 
@@ -112,8 +110,6 @@ export default function Eventos({ linea }: { linea: LineaNegocio }) {
           options={['todos', ...MESES]} display={v => v === 'todos' ? 'Todos' : capitalize(v)} />
         <FilterSelect label="Cliente" value={filters.cliente} onChange={v => setFilters(f => ({ ...f, cliente: v }))}
           options={['todos', ...clientes]} display={v => v === 'todos' ? 'Todos' : v} />
-        <FilterSelect label="A Cargo" value={filters.aCargo} onChange={v => setFilters(f => ({ ...f, aCargo: v }))}
-          options={['todos', ...aCargos]} display={v => v === 'todos' ? 'Todos' : v} />
         <FilterSelect label="Estado de Pago" value={filters.estadoPago} onChange={v => setFilters(f => ({ ...f, estadoPago: v }))}
           options={['todos', 'pagado', 'saldo', 'na']} display={v => v === 'todos' ? 'Todos' : ESTADO_BADGE[v as EstadoPago].label} />
 
@@ -130,18 +126,18 @@ export default function Eventos({ linea }: { linea: LineaNegocio }) {
 
       {/* Table */}
       <div className="bg-white" style={{ border: '1px solid #dfd8c8', borderRadius: 12, flex: 1, minHeight: 0, overflow: 'auto' }}>
-        <table style={{ minWidth: 1540, width: '100%', borderCollapse: 'collapse' }}>
+        <table style={{ minWidth: 1440, width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr>
               <th style={groupHeaderStyle('#f7f4ee', '#12192b')}></th>
-              <th colSpan={8} style={groupHeaderStyle('#f7f4ee', '#12192b')}>Encargado de Cuenta</th>
+              <th colSpan={7} style={groupHeaderStyle('#f7f4ee', '#12192b')}>Encargado de Cuenta</th>
               <th colSpan={2} style={groupHeaderStyle('#efe9df', '#12192b')}>Calculado</th>
               <th colSpan={4} style={groupHeaderStyle('#f4e6c1', '#8a6a1f')}>Finanzas</th>
               <th style={groupHeaderStyle('#f7f4ee', '#12192b')}></th>
             </tr>
             <tr>
               <th style={colHeaderStyle}></th>
-              {['Nº Cot.', 'Mes', 'A Cargo', 'Cliente', 'Proyecto', 'Descripción', 'Costo Cliente', 'Costo Real'].map(h => (
+              {['Nº Cot.', 'Mes', 'Cliente', 'Proyecto', 'Descripción', 'Costo Cliente', 'Costo Real'].map(h => (
                 <th key={h} style={colHeaderStyle}>{h}</th>
               ))}
               <th style={colHeaderStyle}>Utilidad Total</th>
@@ -153,9 +149,9 @@ export default function Eventos({ linea }: { linea: LineaNegocio }) {
             </tr>
           </thead>
           <tbody>
-            {loading && <tr><td colSpan={16} style={{ padding: 24, textAlign: 'center', color: '#9aa0ad' }}>Cargando…</td></tr>}
+            {loading && <tr><td colSpan={15} style={{ padding: 24, textAlign: 'center', color: '#9aa0ad' }}>Cargando…</td></tr>}
             {!loading && filteredRows.length === 0 && (
-              <tr><td colSpan={16} style={{ padding: 24, textAlign: 'center', color: '#9aa0ad' }}>No hay cotizaciones con estos filtros.</td></tr>
+              <tr><td colSpan={15} style={{ padding: 24, textAlign: 'center', color: '#9aa0ad' }}>No hay cotizaciones con estos filtros.</td></tr>
             )}
             {filteredRows.map(row => {
               const badge = ESTADO_BADGE[row.estado_pago ?? 'na'];
@@ -181,11 +177,6 @@ export default function Eventos({ linea }: { linea: LineaNegocio }) {
                         {MESES.map(m => <option key={m} value={m}>{capitalize(m)}</option>)}
                       </select>
                     ) : capitalize(row.mes)}
-                  </td>
-                  <td style={{ ...cellStyle, ...dimStyle(canEditEncargado) }}>
-                    {row.editing && canEditEncargado ? (
-                      <input style={inputStyle} value={row.a_cargo} onChange={e => patchRow(row.id, { a_cargo: e.target.value })} />
-                    ) : row.a_cargo}
                   </td>
                   <td style={{ ...cellStyle, ...dimStyle(canEditEncargado) }}>
                     {row.editing && canEditEncargado ? (
@@ -275,7 +266,7 @@ export default function Eventos({ linea }: { linea: LineaNegocio }) {
                 </tr>
                 {isExpanded && (
                   <tr>
-                    <td colSpan={16} style={{ padding: 0, borderTop: '1px solid #dfd8c8' }}>
+                    <td colSpan={15} style={{ padding: 0, borderTop: '1px solid #dfd8c8' }}>
                       <CotizacionDetalle
                         cotizacion={row}
                         canEdit={canEditEncargado}

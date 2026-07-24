@@ -6,7 +6,7 @@ import { MESES } from '../types';
 import { formatCLP, capitalize, formatNCot } from '../utils';
 import CotizacionDetalle from '../components/CotizacionDetalle';
 
-const ENCARGADO_FIELDS = ['n_cot', 'mes', 'a_cargo', 'cliente', 'proyecto', 'descripcion', 'costo_cliente', 'costo_real'] as const;
+const ENCARGADO_FIELDS = ['n_cot', 'mes', 'cliente', 'proyecto', 'descripcion', 'costo_cliente', 'costo_real'] as const;
 
 const LINEA_LABELS: Record<LineaNegocio, string> = { fauna_rd: 'Fauna RD', agencia: 'Agencia' };
 
@@ -20,7 +20,7 @@ export default function Cotizaciones({ linea }: { linea: LineaNegocio }) {
   const { user } = useAuth();
   const [rows, setRows] = useState<Cotizacion[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filters, setFilters] = useState({ mes: 'todos', cliente: 'todos', aCargo: 'todos', estado: 'todos' });
+  const [filters, setFilters] = useState({ mes: 'todos', cliente: 'todos', estado: 'todos' });
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
 
   function toggleExpanded(id: number) {
@@ -47,12 +47,10 @@ export default function Cotizaciones({ linea }: { linea: LineaNegocio }) {
   }, [linea]);
 
   const clientes = useMemo(() => Array.from(new Set(rows.map(r => r.cliente).filter(Boolean))).sort(), [rows]);
-  const aCargos = useMemo(() => Array.from(new Set(rows.map(r => r.a_cargo).filter(Boolean))).sort(), [rows]);
 
   const filteredRows = rows.filter(r =>
     (filters.mes === 'todos' || r.mes === filters.mes) &&
     (filters.cliente === 'todos' || r.cliente === filters.cliente) &&
-    (filters.aCargo === 'todos' || r.a_cargo === filters.aCargo) &&
     (filters.estado === 'todos' || r.estado_cotizacion === filters.estado)
   );
 
@@ -134,8 +132,6 @@ export default function Cotizaciones({ linea }: { linea: LineaNegocio }) {
           options={['todos', ...MESES]} display={v => v === 'todos' ? 'Todos' : capitalize(v)} />
         <FilterSelect label="Cliente" value={filters.cliente} onChange={v => setFilters(f => ({ ...f, cliente: v }))}
           options={['todos', ...clientes]} display={v => v === 'todos' ? 'Todos' : v} />
-        <FilterSelect label="A Cargo" value={filters.aCargo} onChange={v => setFilters(f => ({ ...f, aCargo: v }))}
-          options={['todos', ...aCargos]} display={v => v === 'todos' ? 'Todos' : v} />
         <FilterSelect label="Estado" value={filters.estado} onChange={v => setFilters(f => ({ ...f, estado: v }))}
           options={['todos', 'pendiente', 'rechazado']} display={v => v === 'todos' ? 'Todos' : ESTADO_COT_BADGE[v as EstadoCotizacion].label} />
 
@@ -152,18 +148,18 @@ export default function Cotizaciones({ linea }: { linea: LineaNegocio }) {
 
       {/* Table */}
       <div className="bg-white overflow-x-auto" style={{ border: '1px solid #dfd8c8', borderRadius: 12 }}>
-        <table style={{ minWidth: 1300, width: '100%', borderCollapse: 'collapse' }}>
+        <table style={{ minWidth: 1200, width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr>
               <th style={groupHeaderStyle('#f7f4ee', '#12192b')}></th>
-              <th colSpan={8} style={groupHeaderStyle('#f7f4ee', '#12192b')}>Encargado de Cuenta</th>
+              <th colSpan={7} style={groupHeaderStyle('#f7f4ee', '#12192b')}>Encargado de Cuenta</th>
               <th colSpan={2} style={groupHeaderStyle('#efe9df', '#12192b')}>Calculado</th>
               <th style={groupHeaderStyle('#f7f4ee', '#12192b')}></th>
               <th style={groupHeaderStyle('#f7f4ee', '#12192b')}></th>
             </tr>
             <tr>
               <th style={colHeaderStyle}></th>
-              {['Nº Cot.', 'Mes', 'A Cargo', 'Cliente', 'Proyecto', 'Descripción', 'Costo Cliente', 'Costo Real'].map(h => (
+              {['Nº Cot.', 'Mes', 'Cliente', 'Proyecto', 'Descripción', 'Costo Cliente', 'Costo Real'].map(h => (
                 <th key={h} style={colHeaderStyle}>{h}</th>
               ))}
               <th style={colHeaderStyle}>Utilidad Total</th>
@@ -173,9 +169,9 @@ export default function Cotizaciones({ linea }: { linea: LineaNegocio }) {
             </tr>
           </thead>
           <tbody>
-            {loading && <tr><td colSpan={13} style={{ padding: 24, textAlign: 'center', color: '#9aa0ad' }}>Cargando…</td></tr>}
+            {loading && <tr><td colSpan={12} style={{ padding: 24, textAlign: 'center', color: '#9aa0ad' }}>Cargando…</td></tr>}
             {!loading && filteredRows.length === 0 && (
-              <tr><td colSpan={13} style={{ padding: 24, textAlign: 'center', color: '#9aa0ad' }}>No hay cotizaciones con estos filtros.</td></tr>
+              <tr><td colSpan={12} style={{ padding: 24, textAlign: 'center', color: '#9aa0ad' }}>No hay cotizaciones con estos filtros.</td></tr>
             )}
             {filteredRows.map(row => {
               const badge = ESTADO_COT_BADGE[row.estado_cotizacion ?? 'pendiente'];
@@ -200,11 +196,6 @@ export default function Cotizaciones({ linea }: { linea: LineaNegocio }) {
                         {MESES.map(m => <option key={m} value={m}>{capitalize(m)}</option>)}
                       </select>
                     ) : capitalize(row.mes)}
-                  </td>
-                  <td style={{ ...cellStyle, ...dimStyle(canEdit) }}>
-                    {row.editing && canEdit ? (
-                      <input style={inputStyle} value={row.a_cargo} onChange={e => patchRow(row.id, { a_cargo: e.target.value })} />
-                    ) : row.a_cargo}
                   </td>
                   <td style={{ ...cellStyle, ...dimStyle(canEdit) }}>
                     {row.editing && canEdit ? (
@@ -282,7 +273,7 @@ export default function Cotizaciones({ linea }: { linea: LineaNegocio }) {
                 </tr>
                 {isExpanded && (
                   <tr>
-                    <td colSpan={13} style={{ padding: 0, borderTop: '1px solid #dfd8c8' }}>
+                    <td colSpan={12} style={{ padding: 0, borderTop: '1px solid #dfd8c8' }}>
                       <CotizacionDetalle
                         cotizacion={row}
                         canEdit={canEdit}
