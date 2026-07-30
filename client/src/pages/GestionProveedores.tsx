@@ -133,7 +133,7 @@ export default function GestionProveedores({ linea }: { linea: LineaNegocio }) {
                   {/* Fila de proveedor (bold, editable) */}
                   <tr style={{ borderTop: '2px solid #dfd8c8', fontWeight: 700, background: '#fbfaf7' }}>
                     <td style={cellStyle}>{row.nCotLabel}</td>
-                    <td style={cellStyle}>{row.oc}</td>
+                    <td style={{ ...cellStyle, fontSize: 11.5, whiteSpace: 'nowrap' }}>{row.oc}</td>
                     <td style={cellStyle}>{row.proveedor}</td>
                     <td style={cellStyle}></td>
                     <td style={cellStyle}></td>
