@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { Cotizacion, CotizacionGrupo, CotizacionItem, Stats } from './types';
+import type { Cotizacion, CotizacionGrupo, CotizacionItem, Proveedor, Stats } from './types';
 
 const api = axios.create({ baseURL: '/api' });
 
@@ -94,3 +94,15 @@ export const downloadCotizacionClientePdf = (cotizacionId: number) =>
 
 export const downloadGrupoOcPdf = (grupoId: number) =>
   downloadPdf(`/detalle/grupos/${grupoId}/pdf-oc`, `oc-${grupoId}.pdf`);
+
+// ---------- Directorio de Proveedores (global, no acotado a una línea) ----------
+
+export const getProveedores = async (): Promise<Proveedor[]> => {
+  const { data } = await api.get('/proveedores');
+  return data;
+};
+
+export const createProveedor = async (payload: Partial<Proveedor>): Promise<Proveedor> => {
+  const { data } = await api.post('/proveedores', payload);
+  return data;
+};

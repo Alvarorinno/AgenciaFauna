@@ -75,6 +75,21 @@ export interface Cotizacion {
   linea_negocio: LineaNegocio;
 }
 
+// Directorio maestro de proveedores del negocio (transversal a ambas líneas de
+// negocio, no ligado a una cotización puntual — ver server/routes/proveedores.js).
+// datos_empresa y cuenta son texto libre porque la fuente histórica mezcla
+// razón social/RUT/giro/dirección o banco/cuenta/RUT en un solo bloque.
+export interface Proveedor {
+  id: number;
+  nombre: string;
+  nombre_contacto: string;
+  datos_empresa: string;
+  cuenta: string;
+  servicios: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface User {
   id: number;
   username: string;

@@ -2,7 +2,7 @@ import { ReactNode } from 'react';
 import { useAuth } from '../context/AuthContext';
 import type { LineaNegocio } from '../types';
 
-type Page = 'general' | 'dashboard' | 'cotizaciones' | 'eventos' | 'proveedores';
+type Page = 'general' | 'dashboard' | 'cotizaciones' | 'eventos' | 'gestion_proveedores' | 'proveedores';
 
 interface Props {
   page: Page;
@@ -30,7 +30,7 @@ export default function Layout({ page, setPage, linea, setLinea, children }: Pro
     { id: 'dashboard', label: 'Dashboard', icon: '▦' },
     ...(role === 'finanzas' ? [] : [{ id: 'cotizaciones' as Page, label: 'Cotizaciones', icon: '📝' }]),
     { id: 'eventos', label: 'Eventos / Proyectos', icon: '▤' },
-    { id: 'proveedores', label: 'Gestión de Proveedores', icon: '🚚' }
+    { id: 'gestion_proveedores', label: 'Gestión de Proveedores', icon: '🚚' }
   ];
 
   return (
@@ -134,6 +134,25 @@ export default function Layout({ page, setPage, linea, setLinea, children }: Pro
               PRONTO
             </span>
           </div>
+
+          {/* Directorio de Proveedores: global, no acotado a una línea de negocio
+              (sirve tanto para Fauna RD como Agencia), por eso vive fuera del
+              LINEAS.map(...) de arriba. */}
+          <button
+            onClick={() => setPage('proveedores')}
+            className="w-full flex items-center gap-2.5 transition-colors"
+            style={{
+              padding: '9px 14px',
+              borderRadius: 9,
+              fontSize: 14,
+              fontWeight: 600,
+              background: page === 'proveedores' ? '#c8a24a' : 'transparent',
+              color: page === 'proveedores' ? '#12192b' : '#c3c7d1'
+            }}
+          >
+            <span>📇</span>
+            Proveedores
+          </button>
         </nav>
 
         <div className="p-4" style={{ borderTop: '1px solid #2a3248' }}>

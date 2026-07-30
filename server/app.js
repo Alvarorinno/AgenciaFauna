@@ -7,6 +7,7 @@ import authRouter from './routes/auth.js';
 import cotizacionesRouter from './routes/cotizaciones.js';
 import statsRouter from './routes/stats.js';
 import detalleRouter from './routes/detalle.js';
+import proveedoresRouter from './routes/proveedores.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const isProd = process.env.NODE_ENV === 'production';
@@ -31,6 +32,7 @@ app.use('/api/auth', authRouter);
 app.use('/api/cotizaciones', cotizacionesRouter);
 app.use('/api/stats', statsRouter);
 app.use('/api/detalle', detalleRouter);
+app.use('/api/proveedores', proveedoresRouter);
 app.get('/api/health', (_, res) => res.json({ ok: true, env: isProd ? 'production' : 'development' }));
 
 // En producción standalone (no-Vercel): servir el frontend compilado desde el mismo Express.

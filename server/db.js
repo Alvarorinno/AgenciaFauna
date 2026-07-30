@@ -115,6 +115,26 @@ async function runInit() {
   await sql`ALTER TABLE cotizacion_items DROP COLUMN IF EXISTS abono1`;
   await sql`ALTER TABLE cotizacion_items DROP COLUMN IF EXISTS abono2`;
 
+  // Proveedores: directorio maestro de proveedores del negocio (transversal a
+  // ambas líneas, Fauna RD y Agencia — no está acotado a una sola). Es distinto
+  // del detalle de proveedores por cotización (cotizacion_grupos): esto es la
+  // ficha de contacto/datos bancarios de cada proveedor, no ligada a una cotización
+  // puntual. datos_empresa y cuenta quedan como texto libre porque la fuente
+  // (planilla histórica) mezcla razón social/RUT/giro/dirección o banco/cuenta/RUT
+  // en un solo bloque, sin una estructura consistente fila a fila.
+  await sql`
+    CREATE TABLE IF NOT EXISTS proveedores (
+      id SERIAL PRIMARY KEY,
+      nombre TEXT DEFAULT '',
+      nombre_contacto TEXT DEFAULT '',
+      datos_empresa TEXT DEFAULT '',
+      cuenta TEXT DEFAULT '',
+      servicios TEXT DEFAULT '',
+      created_at TIMESTAMPTZ DEFAULT now(),
+      updated_at TIMESTAMPTZ DEFAULT now()
+    );
+  `;
+
   await sql`
     CREATE TABLE IF NOT EXISTS users (
       id SERIAL PRIMARY KEY,
@@ -177,6 +197,22 @@ async function runInit() {
         `;
       }
       console.log(`✓ Auto-seed: ${data.length} cotizaciones cargadas desde fauna_seed.json`);
+    }
+  }
+
+  // Auto-seed del directorio de proveedores en primer arranque si la tabla está vacía
+  const [{ n: nProveedores }] = await sql`SELECT COUNT(*)::int as n FROM proveedores`;
+  if (nProveedores === 0) {
+    const proveedoresSeedFile = join(__dirname, '../scripts/proveedores_seed.json');
+    if (existsSync(proveedoresSeedFile)) {
+      const data = JSON.parse(readFileSync(proveedoresSeedFile, 'utf-8'));
+      for (const r of data) {
+        await sql`
+          INSERT INTO proveedores (nombre, nombre_contacto, datos_empresa, cuenta, servicios)
+          VALUES (${r.nombre ?? ''}, ${r.nombre_contacto ?? ''}, ${r.datos_empresa ?? ''}, ${r.cuenta ?? ''}, ${r.servicios ?? ''})
+        `;
+      }
+      console.log(`✓ Auto-seed: ${data.length} proveedores cargados desde proveedores_seed.json`);
     }
   }
 }
