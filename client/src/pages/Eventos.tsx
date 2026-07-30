@@ -1,12 +1,12 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { getCotizaciones, createCotizacion, updateCotizacion, deleteCotizacion } from '../api';
-import type { Cotizacion, EstadoPago, LineaNegocio } from '../types';
+import type { Cotizacion, EstadoPago, LineaNegocio, TipoIngreso } from '../types';
 import { MESES } from '../types';
 import { formatCLP, capitalize, formatNCot } from '../utils';
 import CotizacionDetalle from '../components/CotizacionDetalle';
 
-const ENCARGADO_FIELDS = ['n_cot', 'mes', 'cliente', 'proyecto', 'descripcion', 'costo_cliente', 'costo_real'] as const;
+const ENCARGADO_FIELDS = ['n_cot', 'mes', 'cliente', 'proyecto', 'descripcion', 'costo_cliente', 'costo_real', 'tipo_ingreso'] as const;
 const FINANCE_FIELDS = ['factura', 'fecha_factura', 'mes_factura', 'estado_pago'] as const;
 
 const ESTADO_BADGE: Record<EstadoPago, { label: string; bg: string; text: string }> = {
@@ -15,13 +15,18 @@ const ESTADO_BADGE: Record<EstadoPago, { label: string; bg: string; text: string
   na: { label: '—', bg: '#eceae4', text: '#8a8f9c' }
 };
 
+const TIPO_INGRESO_BADGE: Record<TipoIngreso, { label: string; bg: string; text: string }> = {
+  fee: { label: 'Fee', bg: '#e2e9f5', text: '#2c4a7c' },
+  variable: { label: 'Variable', bg: '#f4e6c1', text: '#8a6a1f' }
+};
+
 const LINEA_LABELS: Record<LineaNegocio, string> = { fauna_rd: 'Fauna RD', agencia: 'Agencia' };
 
 export default function Eventos({ linea }: { linea: LineaNegocio }) {
   const { user } = useAuth();
   const [rows, setRows] = useState<Cotizacion[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filters, setFilters] = useState({ mes: 'todos', cliente: 'todos', estadoPago: 'todos' });
+  const [filters, setFilters] = useState({ mes: 'todos', cliente: 'todos', estadoPago: 'todos', tipoIngreso: 'todos' });
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
 
   function toggleExpanded(id: number) {
@@ -51,7 +56,8 @@ export default function Eventos({ linea }: { linea: LineaNegocio }) {
   const filteredRows = rows.filter(r =>
     (filters.mes === 'todos' || r.mes === filters.mes) &&
     (filters.cliente === 'todos' || r.cliente === filters.cliente) &&
-    (filters.estadoPago === 'todos' || r.estado_pago === filters.estadoPago)
+    (filters.estadoPago === 'todos' || r.estado_pago === filters.estadoPago) &&
+    (filters.tipoIngreso === 'todos' || r.tipo_ingreso === filters.tipoIngreso)
   );
 
   function patchRow(id: number, patch: Partial<Cotizacion>) {
@@ -112,6 +118,8 @@ export default function Eventos({ linea }: { linea: LineaNegocio }) {
           options={['todos', ...clientes]} display={v => v === 'todos' ? 'Todos' : v} />
         <FilterSelect label="Estado de Pago" value={filters.estadoPago} onChange={v => setFilters(f => ({ ...f, estadoPago: v }))}
           options={['todos', 'pagado', 'saldo', 'na']} display={v => v === 'todos' ? 'Todos' : ESTADO_BADGE[v as EstadoPago].label} />
+        <FilterSelect label="Fee / Variable" value={filters.tipoIngreso} onChange={v => setFilters(f => ({ ...f, tipoIngreso: v }))}
+          options={['todos', 'fee', 'variable']} display={v => v === 'todos' ? 'Todos' : TIPO_INGRESO_BADGE[v as TipoIngreso].label} />
 
         {canEditEncargado && (
           <button
@@ -126,18 +134,18 @@ export default function Eventos({ linea }: { linea: LineaNegocio }) {
 
       {/* Table */}
       <div className="bg-white" style={{ border: '1px solid #dfd8c8', borderRadius: 12, flex: 1, minHeight: 0, overflow: 'auto' }}>
-        <table style={{ minWidth: 1440, width: '100%', borderCollapse: 'collapse' }}>
+        <table style={{ minWidth: 1560, width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr>
               <th style={groupHeaderStyle('#f7f4ee', '#12192b')}></th>
-              <th colSpan={7} style={groupHeaderStyle('#f7f4ee', '#12192b')}>Encargado de Cuenta</th>
+              <th colSpan={8} style={groupHeaderStyle('#f7f4ee', '#12192b')}>Encargado de Cuenta</th>
               <th colSpan={2} style={groupHeaderStyle('#efe9df', '#12192b')}>Calculado</th>
               <th colSpan={4} style={groupHeaderStyle('#f4e6c1', '#8a6a1f')}>Finanzas</th>
               <th style={groupHeaderStyle('#f7f4ee', '#12192b')}></th>
             </tr>
             <tr>
               <th style={colHeaderStyle}></th>
-              {['Nº Cot.', 'Mes', 'Cliente', 'Proyecto', 'Descripción', 'Costo Cliente', 'Costo Real'].map(h => (
+              {['Nº Cot.', 'Mes', 'Cliente', 'Proyecto', 'Descripción', 'Fee / Variable', 'Costo Cliente', 'Costo Real'].map(h => (
                 <th key={h} style={colHeaderStyle}>{h}</th>
               ))}
               <th style={colHeaderStyle}>Utilidad Total</th>
@@ -149,9 +157,9 @@ export default function Eventos({ linea }: { linea: LineaNegocio }) {
             </tr>
           </thead>
           <tbody>
-            {loading && <tr><td colSpan={15} style={{ padding: 24, textAlign: 'center', color: '#9aa0ad' }}>Cargando…</td></tr>}
+            {loading && <tr><td colSpan={16} style={{ padding: 24, textAlign: 'center', color: '#9aa0ad' }}>Cargando…</td></tr>}
             {!loading && filteredRows.length === 0 && (
-              <tr><td colSpan={15} style={{ padding: 24, textAlign: 'center', color: '#9aa0ad' }}>No hay cotizaciones con estos filtros.</td></tr>
+              <tr><td colSpan={16} style={{ padding: 24, textAlign: 'center', color: '#9aa0ad' }}>No hay cotizaciones con estos filtros.</td></tr>
             )}
             {filteredRows.map(row => {
               const badge = ESTADO_BADGE[row.estado_pago ?? 'na'];
@@ -193,6 +201,18 @@ export default function Eventos({ linea }: { linea: LineaNegocio }) {
                       <textarea style={{ ...inputStyle, resize: 'vertical' }} rows={2} value={row.descripcion} onChange={e => patchRow(row.id, { descripcion: e.target.value })} />
                     ) : (
                       <span className="line-clamp-2 block" title={row.descripcion}>{row.descripcion}</span>
+                    )}
+                  </td>
+                  <td style={{ ...cellStyle, ...dimStyle(canEditEncargado) }}>
+                    {row.editing && canEditEncargado ? (
+                      <select style={inputStyle} value={row.tipo_ingreso ?? 'fee'} onChange={e => patchRow(row.id, { tipo_ingreso: e.target.value as TipoIngreso })}>
+                        <option value="fee">Fee</option>
+                        <option value="variable">Variable</option>
+                      </select>
+                    ) : (
+                      <span style={{ background: TIPO_INGRESO_BADGE[row.tipo_ingreso ?? 'fee'].bg, color: TIPO_INGRESO_BADGE[row.tipo_ingreso ?? 'fee'].text, padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 600 }}>
+                        {TIPO_INGRESO_BADGE[row.tipo_ingreso ?? 'fee'].label}
+                      </span>
                     )}
                   </td>
                   <td style={{ ...cellStyle, ...dimStyle(canEditEncargado) }} title={row.tiene_detalle ? 'Se calcula automáticamente desde el detalle de proveedores' : ''}>
@@ -266,7 +286,7 @@ export default function Eventos({ linea }: { linea: LineaNegocio }) {
                 </tr>
                 {isExpanded && (
                   <tr>
-                    <td colSpan={15} style={{ padding: 0, borderTop: '1px solid #dfd8c8' }}>
+                    <td colSpan={16} style={{ padding: 0, borderTop: '1px solid #dfd8c8' }}>
                       <CotizacionDetalle
                         cotizacion={row}
                         canEdit={canEditEncargado}

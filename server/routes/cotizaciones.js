@@ -7,7 +7,7 @@ const router = Router();
 router.use(authMiddleware);
 
 // Campos editables por rol (server-side, no confiar solo en el gating de la UI)
-const ENCARGADO_FIELDS = ['n_cot', 'mes', 'cliente', 'proyecto', 'descripcion', 'costo_cliente', 'costo_real', 'estado_cotizacion'];
+const ENCARGADO_FIELDS = ['n_cot', 'mes', 'cliente', 'proyecto', 'descripcion', 'costo_cliente', 'costo_real', 'estado_cotizacion', 'tipo_ingreso'];
 const FINANCE_FIELDS = ['factura', 'fecha_factura', 'mes_factura', 'estado_pago'];
 
 // Trae los grupos+ítems de UNA cotización (usado para que las respuestas de
@@ -61,12 +61,16 @@ router.post('/', async (req, res) => {
     ? req.body.estado_cotizacion
     : 'pendiente';
 
+  // Clasificación Fee / Variable: ante la duda (valor ausente o no reconocido) se
+  // clasifica como 'fee' para que se revise manualmente más adelante.
+  const tipoIngreso = ['fee', 'variable'].includes(req.body.tipo_ingreso) ? req.body.tipo_ingreso : 'fee';
+
   // La línea de negocio se deriva SIEMPRE del usuario autenticado, nunca del body
   // (evita que un 'encargado' cree cotizaciones en la línea de otro).
   const lineaNegocio = req.user.linea_negocio || 'fauna_rd';
 
   const rows = await sql`
-    INSERT INTO cotizaciones (n_cot, mes, cliente, proyecto, descripcion, costo_cliente, costo_real, estado_pago, estado_cotizacion, linea_negocio)
+    INSERT INTO cotizaciones (n_cot, mes, cliente, proyecto, descripcion, costo_cliente, costo_real, estado_pago, estado_cotizacion, linea_negocio, tipo_ingreso)
     VALUES (
       ${nCot},
       ${req.body.mes ?? 'enero'},
@@ -77,7 +81,8 @@ router.post('/', async (req, res) => {
       ${req.body.costo_real || 0},
       'na',
       ${estadoCotizacion},
-      ${lineaNegocio}
+      ${lineaNegocio},
+      ${tipoIngreso}
     )
     RETURNING *
   `;
@@ -112,6 +117,12 @@ router.put('/:id', async (req, res) => {
   for (const field of allowedFields) {
     if (lockedFields.includes(field)) continue;
     if (req.body[field] !== undefined) updates[field] = req.body[field];
+  }
+
+  // Clasificación Fee / Variable: ante cualquier valor no reconocido, se guarda como
+  // 'fee' para revisión manual posterior (mismo criterio usado al crear una cotización).
+  if (updates.tipo_ingreso !== undefined && !['fee', 'variable'].includes(updates.tipo_ingreso)) {
+    updates.tipo_ingreso = 'fee';
   }
 
   if (Object.keys(updates).length === 0) return res.status(400).json({ error: 'Sin campos para actualizar' });

@@ -28,6 +28,7 @@ async function runInit() {
       costo_real NUMERIC DEFAULT 0,
       comision_pct NUMERIC DEFAULT 0,
       comision_monto NUMERIC DEFAULT 0,
+      tipo_ingreso TEXT DEFAULT 'fee',
       factura TEXT,
       fecha_factura TEXT,
       mes_factura TEXT,
@@ -54,6 +55,13 @@ async function runInit() {
   // guardado para no tener que recalcular en cada lectura.
   await sql`ALTER TABLE cotizaciones ADD COLUMN IF NOT EXISTS comision_pct NUMERIC DEFAULT 0`;
   await sql`ALTER TABLE cotizaciones ADD COLUMN IF NOT EXISTS comision_monto NUMERIC DEFAULT 0`;
+
+  // Clasificación Fee / Variable de cada cotización. Se agrega con DEFAULT 'fee' tanto
+  // para filas nuevas como para las ya existentes (ADD COLUMN con DEFAULT rellena las
+  // filas históricas con ese valor): ante la duda se clasifican como 'fee' para revisión
+  // manual posterior, según lo pedido.
+  await sql`ALTER TABLE cotizaciones ADD COLUMN IF NOT EXISTS tipo_ingreso TEXT DEFAULT 'fee'`;
+  await sql`UPDATE cotizaciones SET tipo_ingreso = 'fee' WHERE tipo_ingreso IS NULL`;
 
   // Detalle de proveedores por cotización: grupos (una partida por proveedor,
   // ej. "ADHESIVO SERVICIO TÉCNICO") con sus líneas de ítem (cantidad/unidad/días/precios).

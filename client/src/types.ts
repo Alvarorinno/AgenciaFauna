@@ -6,6 +6,8 @@ export type EstadoPago = 'pagado' | 'saldo' | 'na';
 
 export type EstadoCotizacion = 'pendiente' | 'aprobado' | 'rechazado';
 
+export type TipoIngreso = 'fee' | 'variable';
+
 // Ítem de detalle dentro de un grupo/proveedor (una línea: cantidad, unidad, días, precios).
 export interface CotizacionItem {
   id: number;
@@ -58,6 +60,7 @@ export interface Cotizacion {
   mes_factura: string | null;
   estado_pago: EstadoPago;
   estado_cotizacion: EstadoCotizacion;
+  tipo_ingreso: TipoIngreso;
   created_at: string;
   updated_at: string;
   editing?: boolean;
@@ -106,6 +109,7 @@ export interface Stats {
   ventasPorCliente: ClienteAgg[];
   utilidadPorCliente: ClienteAgg[];
   facturacionPorEstado: Record<EstadoPago, { count: number; monto: number }>;
+  cotizacionesPorTipoIngreso: Record<TipoIngreso, { count: number; monto: number }>;
   porLinea: Record<LineaNegocio, LineaStats>;
 }
 

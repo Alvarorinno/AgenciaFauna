@@ -29,6 +29,7 @@ router.get('/', async (req, res) => {
   const porMes = {};
   const porCliente = {};
   const porEstado = { pagado: { count: 0, monto: 0 }, saldo: { count: 0, monto: 0 }, na: { count: 0, monto: 0 } };
+  const porTipoIngreso = { fee: { count: 0, monto: 0 }, variable: { count: 0, monto: 0 } };
   const porLinea = {
     fauna_rd: { totalCotizado: 0, totalUtilidad: 0, comisionAgencia: 0, saldoPorFacturar: 0, eventos: 0, cotizacionesARevisar: 0 },
     agencia: { totalCotizado: 0, totalUtilidad: 0, comisionAgencia: 0, saldoPorFacturar: 0, eventos: 0, cotizacionesARevisar: 0 }
@@ -81,6 +82,12 @@ router.get('/', async (req, res) => {
       porEstado[estado].count += 1;
       porEstado[estado].monto += costoCliente;
     }
+
+    // Clasificación Fee / Variable: cualquier valor no reconocido (dato histórico
+    // o pendiente de revisar) se cuenta como 'fee', igual que al crear/editar.
+    const tipoIngreso = r.tipo_ingreso === 'variable' ? 'variable' : 'fee';
+    porTipoIngreso[tipoIngreso].count += 1;
+    porTipoIngreso[tipoIngreso].monto += costoCliente;
   }
 
   const pctUtilidadPromedio = totalCotizado === 0 ? 0 : Math.round((totalUtilidad / totalCotizado) * 1000) / 10;
@@ -105,6 +112,7 @@ router.get('/', async (req, res) => {
     ventasPorCliente,
     utilidadPorCliente,
     facturacionPorEstado: porEstado,
+    cotizacionesPorTipoIngreso: porTipoIngreso,
     porLinea
   });
 });
