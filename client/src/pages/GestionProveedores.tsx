@@ -110,7 +110,7 @@ export default function GestionProveedores({ linea }: { linea: LineaNegocio }) {
         <table style={{ minWidth: 1200, width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr>
-              {['Nº Cot. / Evento', 'Proveedor', 'OC', 'Cantidad', 'Costo Unitario', 'Costo Total', 'Factura Proveedor', 'Abono 1', 'Abono 2', 'Saldo'].map(h => (
+              {['Nº Cot. / Evento', 'OC', 'Proveedor', 'Cantidad', 'Costo Unitario', 'Costo Total', 'Factura Proveedor', 'Abono 1', 'Abono 2', 'Saldo'].map(h => (
                 <th key={h} style={colHeaderStyle}>{h}</th>
               ))}
               {canEdit && <th style={colHeaderStyle}>Acciones</th>}
@@ -133,8 +133,8 @@ export default function GestionProveedores({ linea }: { linea: LineaNegocio }) {
                   {/* Fila de proveedor (bold, editable) */}
                   <tr style={{ borderTop: '2px solid #dfd8c8', fontWeight: 700, background: '#fbfaf7' }}>
                     <td style={cellStyle}>{row.nCotLabel}</td>
-                    <td style={cellStyle}>{row.proveedor}</td>
                     <td style={cellStyle}>{row.oc}</td>
+                    <td style={cellStyle}>{row.proveedor}</td>
                     <td style={cellStyle}></td>
                     <td style={cellStyle}></td>
                     <td style={cellStyle}>{formatCLP(row.costoTotal)}</td>
@@ -173,8 +173,8 @@ export default function GestionProveedores({ linea }: { linea: LineaNegocio }) {
                   {row.items.map(it => (
                     <tr key={it.id} style={{ borderTop: '1px solid #efe9df' }}>
                       <td style={cellStyle}></td>
-                      <td style={{ ...cellStyle, paddingLeft: 24, color: '#5b5f6b' }}>{it.nombre}</td>
                       <td style={cellStyle}></td>
+                      <td style={{ ...cellStyle, paddingLeft: 24, color: '#5b5f6b' }}>{it.nombre}</td>
                       <td style={cellStyle}>{it.cantidad}</td>
                       <td style={cellStyle}>{formatCLP(it.unitarioCosto)}</td>
                       <td style={cellStyle}>{formatCLP(it.costoTotal)}</td>
