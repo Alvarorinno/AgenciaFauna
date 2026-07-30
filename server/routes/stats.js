@@ -66,9 +66,15 @@ router.get('/', async (req, res) => {
       if (r.estado_pago === 'saldo') porLinea[r.linea_negocio].saldoPorFacturar += costoCliente;
     }
 
+    // Clasificación Fee / Variable: cualquier valor no reconocido (dato histórico
+    // o pendiente de revisar) se cuenta como 'fee', igual que al crear/editar.
+    const tipoIngreso = r.tipo_ingreso === 'variable' ? 'variable' : 'fee';
+
     if (r.mes) {
-      if (!porMes[r.mes]) porMes[r.mes] = { mes: r.mes, ventas: 0 };
+      if (!porMes[r.mes]) porMes[r.mes] = { mes: r.mes, ventas: 0, ventasFee: 0, ventasVariable: 0 };
       porMes[r.mes].ventas += costoCliente;
+      if (tipoIngreso === 'variable') porMes[r.mes].ventasVariable += costoCliente;
+      else porMes[r.mes].ventasFee += costoCliente;
     }
 
     if (r.cliente) {
@@ -83,9 +89,6 @@ router.get('/', async (req, res) => {
       porEstado[estado].monto += costoCliente;
     }
 
-    // Clasificación Fee / Variable: cualquier valor no reconocido (dato histórico
-    // o pendiente de revisar) se cuenta como 'fee', igual que al crear/editar.
-    const tipoIngreso = r.tipo_ingreso === 'variable' ? 'variable' : 'fee';
     porTipoIngreso[tipoIngreso].count += 1;
     porTipoIngreso[tipoIngreso].monto += costoCliente;
   }

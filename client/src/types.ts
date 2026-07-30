@@ -80,6 +80,8 @@ export interface User {
 export interface MesVentas {
   mes: string;
   ventas: number;
+  ventasFee: number;
+  ventasVariable: number;
 }
 
 export interface ClienteAgg {

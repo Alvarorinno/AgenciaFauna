@@ -1,28 +1,54 @@
+interface Segment {
+  value: number;
+  color: string;
+}
+
 interface ColumnItem {
   label: string;
-  value: number;
   displayValue: string;
-  color?: string;
+  segments: Segment[];
+}
+
+interface LegendItem {
+  label: string;
+  color: string;
 }
 
 interface Props {
   title: string;
   items: ColumnItem[];
-  barColor?: string;
   trackColor?: string;
+  legend?: LegendItem[];
 }
 
-export default function ColumnChart({ title, items, barColor = '#c8a24a', trackColor = '#efe9df' }: Props) {
-  const max = Math.max(1, ...items.map(i => i.value));
+function itemTotal(item: ColumnItem): number {
+  return item.segments.reduce((sum, s) => sum + s.value, 0);
+}
+
+export default function ColumnChart({ title, items, trackColor = '#efe9df', legend }: Props) {
+  const max = Math.max(1, ...items.map(itemTotal));
 
   return (
     <div className="bg-white" style={{ border: '1px solid #dfd8c8', borderRadius: 12, padding: '20px 22px' }}>
-      <h3 className="title-serif font-semibold mb-4" style={{ fontSize: 16, color: '#12192b' }}>{title}</h3>
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="title-serif font-semibold" style={{ fontSize: 16, color: '#12192b' }}>{title}</h3>
+        {legend && legend.length > 0 && (
+          <div className="flex items-center" style={{ gap: 14 }}>
+            {legend.map(l => (
+              <span key={l.label} className="flex items-center" style={{ gap: 6, fontSize: 12, color: '#5b5f6b' }}>
+                <span style={{ width: 9, height: 9, borderRadius: '50%', background: l.color, display: 'inline-block' }} />
+                {l.label}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
       {items.length === 0 && <p style={{ fontSize: 13, color: '#9aa0ad' }}>Sin datos.</p>}
       {items.length > 0 && (
         <div className="flex items-end" style={{ gap: 10, height: 190 }}>
           {items.map(item => {
-            const pct = Math.max(2, Math.round((item.value / max) * 100));
+            const total = itemTotal(item);
+            const pct = Math.max(2, Math.round((total / max) * 100));
             return (
               <div key={item.label} className="flex flex-col items-center" style={{ flex: 1, height: '100%' }}>
                 <span
@@ -35,7 +61,16 @@ export default function ColumnChart({ title, items, barColor = '#c8a24a', trackC
                   className="flex items-end"
                   style={{ width: '100%', flex: 1, background: trackColor, borderRadius: '6px 6px 0 0', overflow: 'hidden' }}
                 >
-                  <div style={{ width: '100%', height: `${pct}%`, background: item.color ?? barColor, borderRadius: '4px 4px 0 0' }} />
+                  <div
+                    className="flex flex-col-reverse"
+                    style={{ width: '100%', height: `${pct}%`, borderRadius: '4px 4px 0 0', overflow: 'hidden' }}
+                  >
+                    {total > 0 && item.segments.map((seg, i) => {
+                      const segPct = Math.round((seg.value / total) * 100);
+                      if (segPct <= 0) return null;
+                      return <div key={i} style={{ width: '100%', height: `${segPct}%`, background: seg.color }} />;
+                    })}
+                  </div>
                 </div>
                 <span
                   className="truncate"

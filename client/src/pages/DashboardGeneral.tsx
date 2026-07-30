@@ -4,7 +4,7 @@ import type { Stats } from '../types';
 import StatCard from '../components/StatCard';
 import BarList from '../components/BarList';
 import ColumnChart from '../components/ColumnChart';
-import { formatCLP, capitalize, MES_COLORS } from '../utils';
+import { formatCLP, capitalize, FEE_VARIABLE_COLORS } from '../utils';
 
 const LINEA_LABELS = { fauna_rd: 'Fauna RD', agencia: 'Agencia' } as const;
 
@@ -69,9 +69,19 @@ export default function DashboardGeneral() {
       <div className="grid mb-6" style={{ gridTemplateColumns: '1fr 1fr', gap: 16 }}>
         <ColumnChart
           title="Ventas por Mes"
-          items={stats.ventasPorMes.map(m => ({ label: capitalize(m.mes), value: m.ventas, displayValue: formatCLP(m.ventas), color: MES_COLORS[m.mes] }))}
+          items={stats.ventasPorMes.map(m => ({
+            label: capitalize(m.mes),
+            displayValue: formatCLP(m.ventas),
+            segments: [
+              { value: m.ventasFee, color: FEE_VARIABLE_COLORS.fee },
+              { value: m.ventasVariable, color: FEE_VARIABLE_COLORS.variable }
+            ]
+          }))}
           trackColor="#efe9df"
-          barColor="#c8a24a"
+          legend={[
+            { label: 'Fee', color: FEE_VARIABLE_COLORS.fee },
+            { label: 'Variable', color: FEE_VARIABLE_COLORS.variable }
+          ]}
         />
         <BarList
           title="Ventas por Cliente"
