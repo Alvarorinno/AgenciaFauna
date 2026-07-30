@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { getCotizaciones, updateGrupo } from '../api';
 import type { LineaNegocio } from '../types';
@@ -31,6 +31,7 @@ export default function GestionProveedores({ linea }: { linea: LineaNegocio }) {
   const [rows, setRows] = useState<ProveedorRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<number | null>(null);
+  const [proveedorFiltro, setProveedorFiltro] = useState('todos');
 
   // Mismo criterio de permisos que el detalle de proveedores dentro de la cotización:
   // solo el 'encargado' de esta línea puede editar factura/abonos.
@@ -38,6 +39,7 @@ export default function GestionProveedores({ linea }: { linea: LineaNegocio }) {
 
   useEffect(() => {
     setLoading(true);
+    setProveedorFiltro('todos');
     getCotizaciones()
       .then(data => {
         const eventos = data.filter(c => c.estado_cotizacion === 'aprobado' && c.linea_negocio === linea);
@@ -69,6 +71,12 @@ export default function GestionProveedores({ linea }: { linea: LineaNegocio }) {
       })
       .catch(() => setLoading(false));
   }, [linea]);
+
+  const proveedores = useMemo(() => Array.from(new Set(rows.map(r => r.proveedor))).sort(), [rows]);
+  const filteredRows = useMemo(
+    () => proveedorFiltro === 'todos' ? rows : rows.filter(r => r.proveedor === proveedorFiltro),
+    [rows, proveedorFiltro]
+  );
 
   function patchRow(grupoId: number, patch: Partial<ProveedorRow>) {
     setRows(prev => prev.map(r => r.grupoId === grupoId ? { ...r, ...patch } : r));
@@ -106,6 +114,22 @@ export default function GestionProveedores({ linea }: { linea: LineaNegocio }) {
         {canEdit ? 'Puedes editar factura y abonos.' : 'Acceso de solo lectura.'}
       </p>
 
+      <div className="flex flex-wrap items-end mb-5 shrink-0" style={{ gap: 14 }}>
+        <div>
+          <label style={{ display: 'block', fontSize: 11, textTransform: 'uppercase', color: '#5b5f6b', fontWeight: 600, marginBottom: 4, letterSpacing: 0.3 }}>
+            Proveedor
+          </label>
+          <select
+            value={proveedorFiltro}
+            onChange={e => setProveedorFiltro(e.target.value)}
+            style={{ padding: '9px 12px', border: '1px solid #dfd8c8', borderRadius: 7, fontSize: 13 }}
+          >
+            <option value="todos">Todos</option>
+            {proveedores.map(p => <option key={p} value={p}>{p}</option>)}
+          </select>
+        </div>
+      </div>
+
       <div className="bg-white" style={{ border: '1px solid #dfd8c8', borderRadius: 12, flex: 1, minHeight: 0, overflow: 'auto' }}>
         <table style={{ minWidth: 1200, width: '100%', borderCollapse: 'collapse' }}>
           <thead>
@@ -120,12 +144,12 @@ export default function GestionProveedores({ linea }: { linea: LineaNegocio }) {
             {loading && (
               <tr><td colSpan={canEdit ? COL_COUNT + 1 : COL_COUNT} style={{ padding: 24, textAlign: 'center', color: '#9aa0ad' }}>Cargando…</td></tr>
             )}
-            {!loading && rows.length === 0 && (
+            {!loading && filteredRows.length === 0 && (
               <tr><td colSpan={canEdit ? COL_COUNT + 1 : COL_COUNT} style={{ padding: 24, textAlign: 'center', color: '#9aa0ad' }}>
-                Todavía no hay eventos con detalle de proveedores cargado.
+                {rows.length === 0 ? 'Todavía no hay eventos con detalle de proveedores cargado.' : 'No hay resultados para este proveedor.'}
               </td></tr>
             )}
-            {rows.map(row => {
+            {filteredRows.map(row => {
               const isEditing = !!row.editing;
               const busy = busyId === row.grupoId;
               return (
