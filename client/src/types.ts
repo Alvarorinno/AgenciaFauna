@@ -88,6 +88,7 @@ export interface ClienteAgg {
 export interface LineaStats {
   totalCotizado: number;
   totalUtilidad: number;
+  comisionAgencia: number;
   saldoPorFacturar: number;
   eventos: number;
   cotizacionesARevisar: number;
@@ -96,6 +97,7 @@ export interface LineaStats {
 export interface Stats {
   totalCotizado: number;
   totalUtilidad: number;
+  totalComisionAgencia: number;
   pctUtilidadPromedio: number;
   saldoPorFacturar: number;
   totalEventos: number;

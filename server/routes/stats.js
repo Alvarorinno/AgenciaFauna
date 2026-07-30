@@ -22,6 +22,7 @@ router.get('/', async (req, res) => {
 
   let totalCotizado = 0;
   let totalUtilidad = 0;
+  let totalComisionAgencia = 0;
   let saldoPorFacturar = 0;
   let totalEventos = 0;
   let totalCotizacionesARevisar = 0;
@@ -29,8 +30,8 @@ router.get('/', async (req, res) => {
   const porCliente = {};
   const porEstado = { pagado: { count: 0, monto: 0 }, saldo: { count: 0, monto: 0 }, na: { count: 0, monto: 0 } };
   const porLinea = {
-    fauna_rd: { totalCotizado: 0, totalUtilidad: 0, saldoPorFacturar: 0, eventos: 0, cotizacionesARevisar: 0 },
-    agencia: { totalCotizado: 0, totalUtilidad: 0, saldoPorFacturar: 0, eventos: 0, cotizacionesARevisar: 0 }
+    fauna_rd: { totalCotizado: 0, totalUtilidad: 0, comisionAgencia: 0, saldoPorFacturar: 0, eventos: 0, cotizacionesARevisar: 0 },
+    agencia: { totalCotizado: 0, totalUtilidad: 0, comisionAgencia: 0, saldoPorFacturar: 0, eventos: 0, cotizacionesARevisar: 0 }
   };
 
   for (const r of conteoRows) {
@@ -50,14 +51,17 @@ router.get('/', async (req, res) => {
     const costoCliente = Number(r.costo_cliente) || 0;
     const costoReal = Number(r.costo_real) || 0;
     const utilidad = costoCliente - costoReal;
+    const comisionAgencia = Number(r.comision_monto) || 0;
 
     totalCotizado += costoCliente;
     totalUtilidad += utilidad;
+    totalComisionAgencia += comisionAgencia;
     if (r.estado_pago === 'saldo') saldoPorFacturar += costoCliente;
 
     if (porLinea[r.linea_negocio]) {
       porLinea[r.linea_negocio].totalCotizado += costoCliente;
       porLinea[r.linea_negocio].totalUtilidad += utilidad;
+      porLinea[r.linea_negocio].comisionAgencia += comisionAgencia;
       if (r.estado_pago === 'saldo') porLinea[r.linea_negocio].saldoPorFacturar += costoCliente;
     }
 
@@ -92,6 +96,7 @@ router.get('/', async (req, res) => {
   res.json({
     totalCotizado,
     totalUtilidad,
+    totalComisionAgencia,
     pctUtilidadPromedio,
     saldoPorFacturar,
     totalEventos,
