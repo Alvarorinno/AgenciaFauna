@@ -23,6 +23,11 @@ export interface CotizacionItem {
   utilidad: number;
   pct_utilidad: number;
   orden: number;
+  // Gestión de Proveedores: factura del proveedor y sus abonos/pagos (solo relevante
+  // una vez que la cotización pasa a evento/aprobada).
+  factura_proveedor: string;
+  abono1: number;
+  abono2: number;
   editing?: boolean;
 }
 

@@ -5,10 +5,11 @@ import Dashboard from './pages/Dashboard';
 import DashboardGeneral from './pages/DashboardGeneral';
 import Cotizaciones from './pages/Cotizaciones';
 import Eventos from './pages/Eventos';
+import GestionProveedores from './pages/GestionProveedores';
 import Layout from './components/Layout';
 import type { LineaNegocio } from './types';
 
-type Page = 'general' | 'dashboard' | 'cotizaciones' | 'eventos';
+type Page = 'general' | 'dashboard' | 'cotizaciones' | 'eventos' | 'proveedores';
 
 function AppContent() {
   const { user } = useAuth();
@@ -32,6 +33,7 @@ function AppContent() {
       {currentPage === 'dashboard' && <Dashboard linea={linea} />}
       {currentPage === 'cotizaciones' && <Cotizaciones linea={linea} />}
       {currentPage === 'eventos' && <Eventos linea={linea} />}
+      {currentPage === 'proveedores' && <GestionProveedores linea={linea} />}
     </Layout>
   );
 }

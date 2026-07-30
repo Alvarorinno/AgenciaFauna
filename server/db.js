@@ -91,10 +91,22 @@ async function runInit() {
       unitario_cliente NUMERIC DEFAULT 0,
       unitario_costo NUMERIC DEFAULT 0,
       orden INTEGER DEFAULT 0,
+      factura_proveedor TEXT DEFAULT '',
+      abono1 NUMERIC DEFAULT 0,
+      abono2 NUMERIC DEFAULT 0,
       created_at TIMESTAMPTZ DEFAULT now(),
       updated_at TIMESTAMPTZ DEFAULT now()
     );
   `;
+
+  // Gestión de Proveedores: una vez que una cotización pasa a evento (aprobada),
+  // su detalle de proveedores (grupos + ítems) se muestra en esa sección — no es
+  // una copia, se lee directo desde estas mismas tablas filtrando por
+  // estado_cotizacion = 'aprobado'. Estos 3 campos son propios de esa sección
+  // (factura del proveedor y sus abonos/pagos), a nivel de ítem.
+  await sql`ALTER TABLE cotizacion_items ADD COLUMN IF NOT EXISTS factura_proveedor TEXT DEFAULT ''`;
+  await sql`ALTER TABLE cotizacion_items ADD COLUMN IF NOT EXISTS abono1 NUMERIC DEFAULT 0`;
+  await sql`ALTER TABLE cotizacion_items ADD COLUMN IF NOT EXISTS abono2 NUMERIC DEFAULT 0`;
 
   await sql`
     CREATE TABLE IF NOT EXISTS users (

@@ -2,7 +2,7 @@ import { ReactNode } from 'react';
 import { useAuth } from '../context/AuthContext';
 import type { LineaNegocio } from '../types';
 
-type Page = 'general' | 'dashboard' | 'cotizaciones' | 'eventos';
+type Page = 'general' | 'dashboard' | 'cotizaciones' | 'eventos' | 'proveedores';
 
 interface Props {
   page: Page;
@@ -29,7 +29,8 @@ export default function Layout({ page, setPage, linea, setLinea, children }: Pro
   const navItems = (role: string | undefined): { id: Page; label: string; icon: string }[] => [
     { id: 'dashboard', label: 'Dashboard', icon: '▦' },
     ...(role === 'finanzas' ? [] : [{ id: 'cotizaciones' as Page, label: 'Cotizaciones', icon: '📝' }]),
-    { id: 'eventos', label: 'Eventos / Proyectos', icon: '▤' }
+    { id: 'eventos', label: 'Eventos / Proyectos', icon: '▤' },
+    { id: 'proveedores', label: 'Gestión de Proveedores', icon: '🚚' }
   ];
 
   return (

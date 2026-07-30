@@ -27,7 +27,12 @@ export function withItemDerived(it) {
     subtotal_cliente: subtotalCliente,
     subtotal_costo: subtotalCosto,
     utilidad,
-    pct_utilidad: pctUtilidad
+    pct_utilidad: pctUtilidad,
+    // Gestión de Proveedores (solo aplica a ítems de cotizaciones ya aprobadas/evento):
+    // factura del proveedor y sus abonos/pagos.
+    factura_proveedor: it.factura_proveedor ?? '',
+    abono1: Number(it.abono1) || 0,
+    abono2: Number(it.abono2) || 0
   };
 }
 
