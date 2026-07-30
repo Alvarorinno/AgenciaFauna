@@ -86,7 +86,11 @@ router.put('/grupos/:id', requireEncargado, async (req, res) => {
   const linea = await checkLineaCotizacion(req, res, existing[0].cotizacion_id);
   if (linea === null) return;
 
-  const fields = ['nombre', 'proveedor', 'rut_proveedor'];
+  // factura_proveedor/abono1/abono2 son propios de Gestión de Proveedores: una
+  // factura + abonos cubren todo el itemizado de este proveedor en la cotización
+  // (no van por ítem). No afectan costo_cliente/costo_real, por eso no disparan
+  // recomputeTotales.
+  const fields = ['nombre', 'proveedor', 'rut_proveedor', 'factura_proveedor', 'abono1', 'abono2'];
   const updates = {};
   for (const f of fields) if (req.body[f] !== undefined) updates[f] = req.body[f];
   if (Object.keys(updates).length === 0) return res.status(400).json({ error: 'Sin campos para actualizar' });
@@ -155,9 +159,7 @@ router.put('/items/:id', requireEncargado, async (req, res) => {
   const linea = await checkLineaCotizacion(req, res, existing[0].cotizacion_id);
   if (linea === null) return;
 
-  // factura_proveedor/abono1/abono2 son propios de Gestión de Proveedores (no afectan
-  // costo_cliente/costo_real, por eso no disparan recomputeTotales por sí solos).
-  const fields = ['nombre', 'cantidad', 'unitario_cliente', 'unitario_costo', 'factura_proveedor', 'abono1', 'abono2'];
+  const fields = ['nombre', 'cantidad', 'unitario_cliente', 'unitario_costo'];
   const updates = {};
   for (const f of fields) if (req.body[f] !== undefined) updates[f] = req.body[f];
   if (Object.keys(updates).length === 0) return res.status(400).json({ error: 'Sin campos para actualizar' });

@@ -20,5 +20,14 @@ export function formatNCot(nCot: number | string, linea: LineaNegocio): string {
   return `${lineaPrefix(linea)}-${nCot}`;
 }
 
+// Número de Orden de Compra de un grupo/proveedor dentro de una cotización:
+// mismo criterio que el PDF de OC (ver routes/detalle.js pdf-oc) — el
+// correlativo es la posición del proveedor dentro de la cotización (1er grupo
+// agregado = 001, 2do = 002, etc., según su columna `orden`).
+export function formatOc(nCot: number | string, linea: LineaNegocio, orden: number): string {
+  const correlativo = String((Number(orden) || 0) + 1).padStart(3, '0');
+  return `${formatNCot(nCot, linea)}-${correlativo}`;
+}
+
 // Colores para diferenciar Fee vs Variable en gráficos (ej. Ventas por Mes apilado).
 export const FEE_VARIABLE_COLORS = { fee: '#2c4a7c', variable: '#c8a24a' } as const;

@@ -27,12 +27,7 @@ export function withItemDerived(it) {
     subtotal_cliente: subtotalCliente,
     subtotal_costo: subtotalCosto,
     utilidad,
-    pct_utilidad: pctUtilidad,
-    // Gestión de Proveedores (solo aplica a ítems de cotizaciones ya aprobadas/evento):
-    // factura del proveedor y sus abonos/pagos.
-    factura_proveedor: it.factura_proveedor ?? '',
-    abono1: Number(it.abono1) || 0,
-    abono2: Number(it.abono2) || 0
+    pct_utilidad: pctUtilidad
   };
 }
 
@@ -47,7 +42,13 @@ export function withGrupoDerived(g, items) {
     subtotal_cliente: subtotalCliente,
     subtotal_costo: subtotalCosto,
     utilidad,
-    pct_utilidad: pctUtilidad
+    pct_utilidad: pctUtilidad,
+    // Gestión de Proveedores: factura del proveedor y sus abonos/pagos son a nivel
+    // de grupo (una factura + abonos cubren todo el itemizado de este proveedor),
+    // no por ítem — solo relevante una vez que la cotización pasa a evento/aprobada.
+    factura_proveedor: g.factura_proveedor ?? '',
+    abono1: Number(g.abono1) || 0,
+    abono2: Number(g.abono2) || 0
   };
 }
 
