@@ -4,7 +4,7 @@ import type { Stats } from '../types';
 import StatCard from '../components/StatCard';
 import BarList from '../components/BarList';
 import ColumnChart from '../components/ColumnChart';
-import { formatCLP, capitalize } from '../utils';
+import { formatCLP, capitalize, MES_COLORS } from '../utils';
 
 const LINEA_LABELS = { fauna_rd: 'Fauna RD', agencia: 'Agencia' } as const;
 
@@ -21,7 +21,6 @@ export default function DashboardGeneral() {
   }
 
   const estados = stats.facturacionPorEstado;
-  const tipoIngreso = stats.cotizacionesPorTipoIngreso;
   const lineas = (Object.keys(LINEA_LABELS) as (keyof typeof LINEA_LABELS)[]);
 
   return (
@@ -70,7 +69,7 @@ export default function DashboardGeneral() {
       <div className="grid mb-6" style={{ gridTemplateColumns: '1fr 1fr', gap: 16 }}>
         <ColumnChart
           title="Ventas por Mes"
-          items={stats.ventasPorMes.map(m => ({ label: capitalize(m.mes), value: m.ventas, displayValue: formatCLP(m.ventas) }))}
+          items={stats.ventasPorMes.map(m => ({ label: capitalize(m.mes), value: m.ventas, displayValue: formatCLP(m.ventas), color: MES_COLORS[m.mes] }))}
           trackColor="#efe9df"
           barColor="#c8a24a"
         />
@@ -82,7 +81,7 @@ export default function DashboardGeneral() {
         />
       </div>
 
-      <div className="grid mb-6" style={{ gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+      <div className="grid" style={{ gridTemplateColumns: '1fr 1fr', gap: 16 }}>
         <BarList
           title="Utilidad por Cliente"
           items={stats.utilidadPorCliente.map(c => ({ label: c.cliente, value: c.utilidad, displayValue: formatCLP(c.utilidad) }))}
@@ -99,18 +98,6 @@ export default function DashboardGeneral() {
             <EstadoRow dot="#c3c7c2" label="Sin aplicar" count={estados.na?.count ?? 0} monto={estados.na?.monto ?? 0} />
           </div>
         </div>
-      </div>
-
-      <div className="grid" style={{ gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-        <BarList
-          title="Cotizaciones por Fee / Variable"
-          items={[
-            { label: 'Fee', value: tipoIngreso.fee?.monto ?? 0, displayValue: `${tipoIngreso.fee?.count ?? 0} · ${formatCLP(tipoIngreso.fee?.monto ?? 0)}` },
-            { label: 'Variable', value: tipoIngreso.variable?.monto ?? 0, displayValue: `${tipoIngreso.variable?.count ?? 0} · ${formatCLP(tipoIngreso.variable?.monto ?? 0)}` }
-          ]}
-          trackColor="#efe9df"
-          fillColor="#c8a24a"
-        />
       </div>
     </div>
   );

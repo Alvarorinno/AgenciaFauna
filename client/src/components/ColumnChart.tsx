@@ -2,6 +2,7 @@ interface ColumnItem {
   label: string;
   value: number;
   displayValue: string;
+  color?: string;
 }
 
 interface Props {
@@ -34,7 +35,7 @@ export default function ColumnChart({ title, items, barColor = '#c8a24a', trackC
                   className="flex items-end"
                   style={{ width: '100%', flex: 1, background: trackColor, borderRadius: '6px 6px 0 0', overflow: 'hidden' }}
                 >
-                  <div style={{ width: '100%', height: `${pct}%`, background: barColor, borderRadius: '4px 4px 0 0' }} />
+                  <div style={{ width: '100%', height: `${pct}%`, background: item.color ?? barColor, borderRadius: '4px 4px 0 0' }} />
                 </div>
                 <span
                   className="truncate"
