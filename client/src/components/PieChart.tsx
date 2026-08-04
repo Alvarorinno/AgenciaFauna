@@ -54,17 +54,23 @@ export default function PieChart({ title, items, colors = DEFAULT_COLORS }: Prop
             )}
           </svg>
           <div className="flex-1 space-y-2" style={{ minWidth: 0 }}>
-            {items.map((item, i) => (
-              <div key={item.label} className="flex items-center justify-between" style={{ gap: 10 }}>
-                <span className="flex items-center truncate" style={{ gap: 8, fontSize: 12.5, color: '#5b5f6b', minWidth: 0 }}>
-                  <span style={{ width: 9, height: 9, borderRadius: '50%', background: colors[i % colors.length], display: 'inline-block', flexShrink: 0 }} />
-                  <span className="truncate" title={item.label}>{item.label}</span>
-                </span>
-                <span className="font-semibold" style={{ fontSize: 12.5, color: '#12192b', whiteSpace: 'nowrap' }}>
-                  {item.displayValue}
-                </span>
-              </div>
-            ))}
+            {items.map((item, i) => {
+              const pct = total === 0 ? 0 : (item.value / total) * 100;
+              return (
+                <div key={item.label} className="flex items-center" style={{ gap: 10 }}>
+                  <span className="flex items-center truncate" style={{ gap: 8, fontSize: 12.5, color: '#5b5f6b', minWidth: 0, flex: 1 }}>
+                    <span style={{ width: 9, height: 9, borderRadius: '50%', background: colors[i % colors.length], display: 'inline-block', flexShrink: 0 }} />
+                    <span className="truncate" title={item.label}>{item.label}</span>
+                  </span>
+                  <span style={{ fontSize: 11.5, color: '#9aa0ad', whiteSpace: 'nowrap' }}>
+                    {pct.toFixed(1)}%
+                  </span>
+                  <span className="font-semibold" style={{ fontSize: 12.5, color: '#12192b', whiteSpace: 'nowrap' }}>
+                    {item.displayValue}
+                  </span>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
