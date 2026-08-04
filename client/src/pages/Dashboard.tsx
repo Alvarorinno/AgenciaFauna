@@ -49,7 +49,7 @@ export default function Dashboard({ linea }: { linea: LineaNegocio }) {
             label: capitalize(m.mes),
             displayValue: formatCLP(m.ventas),
             segments: [
-              { value: m.ventasFee, color: FEE_VARIABLE_COLORS.fee },
+              { value: m.ventasFee, color: FEE_VARIABLE_COLORS.fee, displayValue: formatCLP(m.ventasFee) },
               { value: m.ventasVariable, color: FEE_VARIABLE_COLORS.variable }
             ]
           }))}

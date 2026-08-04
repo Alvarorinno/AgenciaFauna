@@ -1,6 +1,9 @@
 interface Segment {
   value: number;
   color: string;
+  // Etiqueta opcional con el valor de este segmento en particular (ej. el total
+  // de Fee dentro del mes), mostrada debajo del total de la columna.
+  displayValue?: string;
 }
 
 interface ColumnItem {
@@ -51,12 +54,23 @@ export default function ColumnChart({ title, items, trackColor = '#efe9df', lege
             const pct = Math.max(2, Math.round((total / max) * 100));
             return (
               <div key={item.label} className="flex flex-col items-center" style={{ flex: 1, height: '100%' }}>
-                <span
-                  className="font-semibold"
-                  style={{ fontSize: 10.5, color: '#12192b', marginBottom: 4, whiteSpace: 'nowrap' }}
-                >
-                  {item.displayValue}
-                </span>
+                <div className="flex flex-col items-center" style={{ marginBottom: 4 }}>
+                  <span
+                    className="font-semibold"
+                    style={{ fontSize: 10.5, color: '#12192b', whiteSpace: 'nowrap' }}
+                  >
+                    {item.displayValue}
+                  </span>
+                  {item.segments.filter(s => s.displayValue).map((s, i) => (
+                    <span
+                      key={i}
+                      className="font-semibold"
+                      style={{ fontSize: 9, color: s.color, whiteSpace: 'nowrap' }}
+                    >
+                      {s.displayValue}
+                    </span>
+                  ))}
+                </div>
                 <div
                   className="flex items-end"
                   style={{ width: '100%', flex: 1, background: trackColor, borderRadius: '6px 6px 0 0', overflow: 'hidden' }}
