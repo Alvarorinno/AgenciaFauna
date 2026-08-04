@@ -4,6 +4,7 @@ import type { Stats, LineaNegocio } from '../types';
 import StatCard from '../components/StatCard';
 import BarList from '../components/BarList';
 import ColumnChart from '../components/ColumnChart';
+import PieChart from '../components/PieChart';
 import { formatCLP, capitalize, FEE_VARIABLE_COLORS } from '../utils';
 
 const LINEA_LABELS: Record<LineaNegocio, string> = { fauna_rd: 'Fauna RD', agencia: 'Agencia' };
@@ -41,7 +42,7 @@ export default function Dashboard({ linea }: { linea: LineaNegocio }) {
         <StatCard label="Cotizaciones a Revisar" value={String(stats.totalCotizacionesARevisar)} color="#8a6a1f" />
       </div>
 
-      <div className="grid mb-6" style={{ gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+      <div className="mb-6">
         <ColumnChart
           title="Ventas por Mes"
           items={stats.ventasPorMes.map(m => ({
@@ -58,15 +59,13 @@ export default function Dashboard({ linea }: { linea: LineaNegocio }) {
             { label: 'Variable', color: FEE_VARIABLE_COLORS.variable }
           ]}
         />
-        <BarList
-          title="Ventas por Cliente"
-          items={stats.ventasPorCliente.map(c => ({ label: c.cliente, value: c.ventas, displayValue: formatCLP(c.ventas) }))}
-          trackColor="#efe9df"
-          fillColor="#c8a24a"
-        />
       </div>
 
-      <div className="grid" style={{ gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+      <div className="grid" style={{ gridTemplateColumns: '1fr 1fr 0.7fr', gap: 16 }}>
+        <PieChart
+          title="Ventas por Cliente"
+          items={stats.ventasPorCliente.map(c => ({ label: c.cliente, value: c.ventas, displayValue: formatCLP(c.ventas) }))}
+        />
         <BarList
           title="Utilidad por Cliente"
           items={stats.utilidadPorCliente.map(c => ({ label: c.cliente, value: c.utilidad, displayValue: formatCLP(c.utilidad) }))}
@@ -75,9 +74,9 @@ export default function Dashboard({ linea }: { linea: LineaNegocio }) {
           valueColor="#1f7a4d"
         />
 
-        <div className="bg-white" style={{ border: '1px solid #dfd8c8', borderRadius: 12, padding: '20px 22px' }}>
-          <h3 className="title-serif font-semibold mb-4" style={{ fontSize: 16, color: '#12192b' }}>Facturación por Estado</h3>
-          <div className="space-y-3">
+        <div className="bg-white" style={{ border: '1px solid #dfd8c8', borderRadius: 12, padding: '16px 18px' }}>
+          <h3 className="title-serif font-semibold mb-3" style={{ fontSize: 14.5, color: '#12192b' }}>Facturación por Estado</h3>
+          <div className="space-y-2.5">
             <EstadoRow dot="#1f7a4d" label="Pagado" count={estados.pagado?.count ?? 0} monto={estados.pagado?.monto ?? 0} />
             <EstadoRow dot="#c8a24a" label="Saldo x Facturar" count={estados.saldo?.count ?? 0} monto={estados.saldo?.monto ?? 0} />
             <EstadoRow dot="#c3c7c2" label="Sin aplicar" count={estados.na?.count ?? 0} monto={estados.na?.monto ?? 0} />
@@ -114,12 +113,12 @@ function UtilidadCard({ totalUtilidad, comisionAgencia }: { totalUtilidad: numbe
 
 function EstadoRow({ dot, label, count, monto }: { dot: string; label: string; count: number; monto: number }) {
   return (
-    <div className="flex items-center justify-between">
-      <div className="flex items-center gap-2.5">
-        <span style={{ width: 10, height: 10, borderRadius: '50%', background: dot, display: 'inline-block' }} />
-        <span style={{ fontSize: 14, color: '#12192b', fontWeight: 500 }}>{label}</span>
+    <div>
+      <div className="flex items-center gap-2" style={{ marginBottom: 2 }}>
+        <span style={{ width: 8, height: 8, borderRadius: '50%', background: dot, display: 'inline-block', flexShrink: 0 }} />
+        <span className="truncate" style={{ fontSize: 12.5, color: '#12192b', fontWeight: 500 }}>{label}</span>
       </div>
-      <span style={{ fontSize: 13, color: '#5b5f6b' }}>
+      <span style={{ fontSize: 12, color: '#5b5f6b', paddingLeft: 16 }}>
         {count} · {formatCLP(monto)}
       </span>
     </div>

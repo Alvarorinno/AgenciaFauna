@@ -95,9 +95,9 @@ router.get('/', async (req, res) => {
 
   const pctUtilidadPromedio = totalCotizado === 0 ? 0 : Math.round((totalUtilidad / totalCotizado) * 1000) / 10;
 
-  const ventasPorMes = MESES
-    .filter(m => porMes[m])
-    .map(m => porMes[m]);
+  // Se listan los 12 meses siempre (no solo los que tienen ventas), para que el
+  // gráfico de Ventas por Mes muestre el año completo con los meses sin datos en 0.
+  const ventasPorMes = MESES.map(m => porMes[m] ?? { mes: m, ventas: 0, ventasFee: 0, ventasVariable: 0 });
 
   const clientesArr = Object.values(porCliente);
   const ventasPorCliente = [...clientesArr].sort((a, b) => b.ventas - a.ventas).slice(0, 6);
