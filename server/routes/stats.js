@@ -57,13 +57,18 @@ router.get('/', async (req, res) => {
     totalCotizado += costoCliente;
     totalUtilidad += utilidad;
     totalComisionAgencia += comisionAgencia;
-    if (r.estado_pago === 'saldo') saldoPorFacturar += costoCliente;
+
+    // "Saldo por Facturar" = eventos aprobados que aún no tienen una factura
+    // asociada (independiente del estado_pago, que es editado manualmente por
+    // finanzas y no siempre refleja si ya se emitió la factura).
+    const sinFactura = !r.factura || String(r.factura).trim() === '';
+    if (sinFactura) saldoPorFacturar += costoCliente;
 
     if (porLinea[r.linea_negocio]) {
       porLinea[r.linea_negocio].totalCotizado += costoCliente;
       porLinea[r.linea_negocio].totalUtilidad += utilidad;
       porLinea[r.linea_negocio].comisionAgencia += comisionAgencia;
-      if (r.estado_pago === 'saldo') porLinea[r.linea_negocio].saldoPorFacturar += costoCliente;
+      if (sinFactura) porLinea[r.linea_negocio].saldoPorFacturar += costoCliente;
     }
 
     // Clasificación Fee / Variable: cualquier valor no reconocido (dato histórico
