@@ -15,7 +15,8 @@ router.get('/', async (req, res) => {
 
   // Conteos de KPIs que no dependen solo de las cotizaciones aprobadas:
   // - "Proyectos" = cotizaciones aprobadas (mismo criterio que la vista Eventos).
-  // - "Cotizaciones a revisar" = cotizaciones que siguen abiertas (no rechazadas: pendiente o aprobado).
+  // - "Cotizaciones a revisar" = pendientes (mismo criterio que la hoja Cotizaciones,
+  //   que solo lista pendientes y rechazadas; las aprobadas ya pasaron a Eventos).
   const conteoRows = linea
     ? await sql`SELECT estado_cotizacion, linea_negocio FROM cotizaciones WHERE linea_negocio = ${linea}`
     : await sql`SELECT estado_cotizacion, linea_negocio FROM cotizaciones`;
@@ -37,14 +38,14 @@ router.get('/', async (req, res) => {
 
   for (const r of conteoRows) {
     const esAprobado = r.estado_cotizacion === 'aprobado';
-    const esNoRechazada = r.estado_cotizacion !== 'rechazado';
+    const esPendiente = r.estado_cotizacion === 'pendiente';
 
     if (esAprobado) totalEventos += 1;
-    if (esNoRechazada) totalCotizacionesARevisar += 1;
+    if (esPendiente) totalCotizacionesARevisar += 1;
 
     if (porLinea[r.linea_negocio]) {
       if (esAprobado) porLinea[r.linea_negocio].eventos += 1;
-      if (esNoRechazada) porLinea[r.linea_negocio].cotizacionesARevisar += 1;
+      if (esPendiente) porLinea[r.linea_negocio].cotizacionesARevisar += 1;
     }
   }
 

@@ -4,7 +4,7 @@ import type { Stats } from '../types';
 import StatCard from '../components/StatCard';
 import BarList from '../components/BarList';
 import ColumnChart from '../components/ColumnChart';
-import { formatCLP, capitalize, FEE_VARIABLE_COLORS } from '../utils';
+import { formatCLP, formatCLPCompact, capitalize, FEE_VARIABLE_COLORS } from '../utils';
 
 const LINEA_LABELS = { fauna_rd: 'Fauna RD', agencia: 'Agencia' } as const;
 
@@ -34,10 +34,10 @@ export default function DashboardGeneral() {
         className="grid mb-6"
         style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 16 }}
       >
-        <StatCard label="Total Cotizado" value={formatCLP(stats.totalCotizado)} />
-        <StatCard label="Total Utilidad" value={formatCLP(stats.totalUtilidad)} color="#1f7a4d" />
+        <StatCard label="Total Vendido" value={formatCLPCompact(stats.totalCotizado)} />
+        <StatCard label="Total Utilidad" value={formatCLPCompact(stats.totalUtilidad)} color="#1f7a4d" />
         <StatCard label="% Utilidad Promedio" value={`${stats.pctUtilidadPromedio.toFixed(1)}%`} />
-        <StatCard label="Saldo por Facturar" value={formatCLP(stats.saldoPorFacturar)} color="#8a6a1f" />
+        <StatCard label="Saldo por Facturar" value={formatCLPCompact(stats.saldoPorFacturar)} color="#8a6a1f" />
         <StatCard label="Proyectos" value={String(stats.totalEventos)} />
         <StatCard label="Cotizaciones a Revisar" value={String(stats.totalCotizacionesARevisar)} color="#8a6a1f" />
       </div>

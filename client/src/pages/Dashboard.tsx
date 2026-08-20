@@ -5,7 +5,7 @@ import StatCard from '../components/StatCard';
 import BarList from '../components/BarList';
 import ColumnChart from '../components/ColumnChart';
 import PieChart from '../components/PieChart';
-import { formatCLP, capitalize, FEE_VARIABLE_COLORS } from '../utils';
+import { formatCLP, formatCLPCompact, capitalize, FEE_VARIABLE_COLORS } from '../utils';
 
 const LINEA_LABELS: Record<LineaNegocio, string> = { fauna_rd: 'Fauna RD', agencia: 'Agencia' };
 
@@ -34,10 +34,10 @@ export default function Dashboard({ linea, onMonthClick }: { linea: LineaNegocio
         className="grid mb-6"
         style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 16 }}
       >
-        <StatCard label="Total Cotizado" value={formatCLP(stats.totalCotizado)} />
+        <StatCard label="Total Vendido" value={formatCLPCompact(stats.totalCotizado)} />
         <UtilidadCard totalUtilidad={stats.totalUtilidad} comisionAgencia={stats.totalComisionAgencia} />
         <StatCard label="% Utilidad Promedio" value={`${stats.pctUtilidadPromedio.toFixed(1)}%`} />
-        <StatCard label="Saldo por Facturar" value={formatCLP(stats.saldoPorFacturar)} color="#8a6a1f" />
+        <StatCard label="Saldo por Facturar" value={formatCLPCompact(stats.saldoPorFacturar)} color="#8a6a1f" />
         <StatCard label="Proyectos" value={String(stats.totalEventos)} />
         <StatCard label="Cotizaciones a Revisar" value={String(stats.totalCotizacionesARevisar)} color="#8a6a1f" />
       </div>
@@ -97,16 +97,16 @@ function UtilidadCard({ totalUtilidad, comisionAgencia }: { totalUtilidad: numbe
         Total Utilidad
       </p>
       <p className="mt-2 font-bold" style={{ fontSize: 26, color: '#1f7a4d' }}>
-        {formatCLP(totalUtilidad)}
+        {formatCLPCompact(totalUtilidad)}
       </p>
       <div className="mt-2 space-y-1" style={{ paddingTop: 8, borderTop: '1px solid #efe9df' }}>
         <div className="flex items-center justify-between">
           <span style={{ fontSize: 12, color: '#5b5f6b' }}>Markup</span>
-          <span style={{ fontSize: 12.5, fontWeight: 600, color: '#1f7a4d' }}>{formatCLP(utilidadNegocio)}</span>
+          <span style={{ fontSize: 12.5, fontWeight: 600, color: '#1f7a4d' }}>{formatCLPCompact(utilidadNegocio)}</span>
         </div>
         <div className="flex items-center justify-between">
           <span style={{ fontSize: 12, color: '#5b5f6b' }}>Comisión Agencia</span>
-          <span style={{ fontSize: 12.5, fontWeight: 600, color: '#8a6a1f' }}>{formatCLP(comisionAgencia)}</span>
+          <span style={{ fontSize: 12.5, fontWeight: 600, color: '#8a6a1f' }}>{formatCLPCompact(comisionAgencia)}</span>
         </div>
       </div>
     </div>
