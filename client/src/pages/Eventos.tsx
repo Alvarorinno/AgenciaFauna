@@ -22,12 +22,20 @@ const TIPO_INGRESO_BADGE: Record<TipoIngreso, { label: string; bg: string; text:
 
 const LINEA_LABELS: Record<LineaNegocio, string> = { fauna_rd: 'Fauna RD', agencia: 'Agencia' };
 
-export default function Eventos({ linea }: { linea: LineaNegocio }) {
+export default function Eventos({ linea, presetMes }: { linea: LineaNegocio; presetMes?: { mes: string; token: number } | null }) {
   const { user } = useAuth();
   const [rows, setRows] = useState<Cotizacion[]>([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({ mes: 'todos', cliente: 'todos', estadoPago: 'todos', tipoIngreso: 'todos' });
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
+
+  // Al llegar desde el gráfico "Ventas por Mes" del dashboard, se preselecciona
+  // el mes clickeado. El `token` cambia en cada click (aunque sea el mismo mes),
+  // para que el filtro se reaplique incluso si el usuario lo había cambiado.
+  useEffect(() => {
+    if (presetMes) setFilters(f => ({ ...f, mes: presetMes.mes }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [presetMes?.token]);
 
   function toggleExpanded(id: number) {
     setExpanded(prev => {

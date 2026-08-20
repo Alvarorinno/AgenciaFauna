@@ -9,7 +9,7 @@ import { formatCLP, capitalize, FEE_VARIABLE_COLORS } from '../utils';
 
 const LINEA_LABELS: Record<LineaNegocio, string> = { fauna_rd: 'Fauna RD', agencia: 'Agencia' };
 
-export default function Dashboard({ linea }: { linea: LineaNegocio }) {
+export default function Dashboard({ linea, onMonthClick }: { linea: LineaNegocio; onMonthClick?: (mes: string) => void }) {
   const [stats, setStats] = useState<Stats | null>(null);
 
   useEffect(() => {
@@ -47,6 +47,7 @@ export default function Dashboard({ linea }: { linea: LineaNegocio }) {
           title="Ventas por Mes"
           items={stats.ventasPorMes.map(m => ({
             label: capitalize(m.mes),
+            value: m.mes,
             displayValue: formatCLP(m.ventas),
             segments: [
               { value: m.ventasFee, color: FEE_VARIABLE_COLORS.fee, displayValue: formatCLP(m.ventasFee) },
@@ -58,6 +59,7 @@ export default function Dashboard({ linea }: { linea: LineaNegocio }) {
             { label: 'Fee', color: FEE_VARIABLE_COLORS.fee },
             { label: 'Variable', color: FEE_VARIABLE_COLORS.variable }
           ]}
+          onItemClick={onMonthClick}
         />
       </div>
 

@@ -10,6 +10,9 @@ interface ColumnItem {
   label: string;
   displayValue: string;
   segments: Segment[];
+  // Identificador opcional para el callback de click (ej. el mes en minúscula
+  // sin capitalizar, distinto del label mostrado). Si no se define, se usa label.
+  value?: string;
 }
 
 interface LegendItem {
@@ -22,13 +25,14 @@ interface Props {
   items: ColumnItem[];
   trackColor?: string;
   legend?: LegendItem[];
+  onItemClick?: (value: string) => void;
 }
 
 function itemTotal(item: ColumnItem): number {
   return item.segments.reduce((sum, s) => sum + s.value, 0);
 }
 
-export default function ColumnChart({ title, items, trackColor = '#efe9df', legend }: Props) {
+export default function ColumnChart({ title, items, trackColor = '#efe9df', legend, onItemClick }: Props) {
   const max = Math.max(1, ...items.map(itemTotal));
 
   return (
@@ -53,7 +57,13 @@ export default function ColumnChart({ title, items, trackColor = '#efe9df', lege
             const total = itemTotal(item);
             const pct = Math.max(2, Math.round((total / max) * 100));
             return (
-              <div key={item.label} className="flex flex-col items-center" style={{ flex: 1, height: '100%' }}>
+              <div
+                key={item.label}
+                className="flex flex-col items-center"
+                style={{ flex: 1, height: '100%', cursor: onItemClick ? 'pointer' : 'default' }}
+                onClick={onItemClick ? () => onItemClick(item.value ?? item.label) : undefined}
+                title={onItemClick ? `Ver eventos de ${item.label}` : undefined}
+              >
                 <div className="flex flex-col items-center" style={{ marginBottom: 4 }}>
                   <span
                     className="font-semibold"

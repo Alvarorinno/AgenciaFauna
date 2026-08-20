@@ -16,6 +16,14 @@ function AppContent() {
   const { user } = useAuth();
   const [page, setPage] = useState<Page>('dashboard');
   const [linea, setLinea] = useState<LineaNegocio>('fauna_rd');
+  const [eventosMesPreset, setEventosMesPreset] = useState<{ mes: string; token: number } | null>(null);
+
+  // Click en un mes del gráfico "Ventas por Mes" del dashboard -> ir a Eventos
+  // con ese mes ya filtrado.
+  function handleMonthClick(mes: string) {
+    setEventosMesPreset({ mes, token: Date.now() });
+    setPage('eventos');
+  }
 
   // El estado inicial de useState solo corre una vez (antes de que exista `user`,
   // que llega recién tras el login), así que la línea por defecto del usuario se
@@ -31,9 +39,9 @@ function AppContent() {
   return (
     <Layout page={currentPage} setPage={setPage} linea={linea} setLinea={setLinea}>
       {currentPage === 'general' && <DashboardGeneral />}
-      {currentPage === 'dashboard' && <Dashboard linea={linea} />}
+      {currentPage === 'dashboard' && <Dashboard linea={linea} onMonthClick={handleMonthClick} />}
       {currentPage === 'cotizaciones' && <Cotizaciones linea={linea} />}
-      {currentPage === 'eventos' && <Eventos linea={linea} />}
+      {currentPage === 'eventos' && <Eventos linea={linea} presetMes={eventosMesPreset} />}
       {currentPage === 'gestion_proveedores' && <GestionProveedores linea={linea} />}
       {currentPage === 'proveedores' && <Proveedores />}
     </Layout>
