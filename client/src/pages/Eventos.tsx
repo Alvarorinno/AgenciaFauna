@@ -22,7 +22,11 @@ const TIPO_INGRESO_BADGE: Record<TipoIngreso, { label: string; bg: string; text:
 
 const LINEA_LABELS: Record<LineaNegocio, string> = { fauna_rd: 'Fauna RD', agencia: 'Agencia' };
 
-export default function Eventos({ linea, presetMes }: { linea: LineaNegocio; presetMes?: { mes: string; token: number } | null }) {
+export default function Eventos({ linea, presetMes, onPresetConsumed }: {
+  linea: LineaNegocio;
+  presetMes?: { mes: string; token: number } | null;
+  onPresetConsumed?: () => void;
+}) {
   const { user } = useAuth();
   const [rows, setRows] = useState<Cotizacion[]>([]);
   const [loading, setLoading] = useState(true);
@@ -32,8 +36,14 @@ export default function Eventos({ linea, presetMes }: { linea: LineaNegocio; pre
   // Al llegar desde el gráfico "Ventas por Mes" del dashboard, se preselecciona
   // el mes clickeado. El `token` cambia en cada click (aunque sea el mismo mes),
   // para que el filtro se reaplique incluso si el usuario lo había cambiado.
+  // Se avisa al padre que ya se consumió (onPresetConsumed) para que no se
+  // vuelva a reaplicar si el usuario sale de esta página y vuelve a entrar
+  // (el componente se remonta y, sin esto, el filtro quedaba "pegado").
   useEffect(() => {
-    if (presetMes) setFilters(f => ({ ...f, mes: presetMes.mes }));
+    if (presetMes) {
+      setFilters(f => ({ ...f, mes: presetMes.mes }));
+      onPresetConsumed?.();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [presetMes?.token]);
 
@@ -67,6 +77,11 @@ export default function Eventos({ linea, presetMes }: { linea: LineaNegocio; pre
     (filters.estadoPago === 'todos' || r.estado_pago === filters.estadoPago) &&
     (filters.tipoIngreso === 'todos' || r.tipo_ingreso === filters.tipoIngreso)
   );
+
+  // Totales de la sección "Calculado" para las filas visibles (respeta los filtros activos).
+  const totalCostoClienteFiltrado = filteredRows.reduce((sum, r) => sum + (Number(r.costo_cliente) || 0), 0);
+  const totalUtilidadFiltrada = filteredRows.reduce((sum, r) => sum + (Number(r.utilidad) || 0), 0);
+  const pctUtilidadFiltrada = totalCostoClienteFiltrado === 0 ? 0 : (totalUtilidadFiltrada / totalCostoClienteFiltrado) * 100;
 
   function patchRow(id: number, patch: Partial<Cotizacion>) {
     setRows(prev => prev.map(r => r.id === id ? { ...r, ...patch } : r));
@@ -307,6 +322,20 @@ export default function Eventos({ linea, presetMes }: { linea: LineaNegocio; pre
               );
             })}
           </tbody>
+          {!loading && filteredRows.length > 0 && (
+            <tfoot>
+              <tr style={{ borderTop: '2px solid #dfd8c8', background: '#f7f4ee', position: 'sticky', bottom: 0 }}>
+                <td colSpan={9} style={{ ...cellStyle, textAlign: 'right', fontWeight: 700 }}>Totales</td>
+                <td style={{ ...cellStyle, fontWeight: 700, color: totalUtilidadFiltrada >= 0 ? '#1f7a4d' : '#6d2632' }}>
+                  {formatCLP(totalUtilidadFiltrada)}
+                </td>
+                <td style={{ ...cellStyle, fontWeight: 700, color: totalUtilidadFiltrada >= 0 ? '#1f7a4d' : '#6d2632' }}>
+                  {pctUtilidadFiltrada.toFixed(1)}%
+                </td>
+                <td colSpan={5} style={cellStyle}></td>
+              </tr>
+            </tfoot>
+          )}
         </table>
       </div>
     </div>

@@ -41,7 +41,9 @@ function AppContent() {
       {currentPage === 'general' && <DashboardGeneral />}
       {currentPage === 'dashboard' && <Dashboard linea={linea} onMonthClick={handleMonthClick} />}
       {currentPage === 'cotizaciones' && <Cotizaciones linea={linea} />}
-      {currentPage === 'eventos' && <Eventos linea={linea} presetMes={eventosMesPreset} />}
+      {currentPage === 'eventos' && (
+        <Eventos linea={linea} presetMes={eventosMesPreset} onPresetConsumed={() => setEventosMesPreset(null)} />
+      )}
       {currentPage === 'gestion_proveedores' && <GestionProveedores linea={linea} />}
       {currentPage === 'proveedores' && <Proveedores />}
     </Layout>
