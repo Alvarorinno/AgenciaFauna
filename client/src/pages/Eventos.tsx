@@ -332,7 +332,11 @@ export default function Eventos({ linea, presetMes, onPresetConsumed }: {
           {!loading && filteredRows.length > 0 && (
             <tfoot>
               <tr style={{ borderTop: '2px solid #dfd8c8', background: '#f7f4ee', position: 'sticky', bottom: 0 }}>
-                <td colSpan={9} style={{ ...cellStyle, textAlign: 'right', fontWeight: 700 }}>Totales</td>
+                <td colSpan={7} style={{ ...cellStyle, textAlign: 'right', fontWeight: 700 }}>Totales</td>
+                <td style={{ ...cellStyle, fontWeight: 700 }}>
+                  {formatCLP(totalCostoClienteFiltrado)}
+                </td>
+                <td style={cellStyle}></td>
                 <td style={{ ...cellStyle, fontWeight: 700, color: totalUtilidadFiltrada >= 0 ? '#1f7a4d' : '#6d2632' }}>
                   {formatCLP(totalUtilidadFiltrada)}
                 </td>
