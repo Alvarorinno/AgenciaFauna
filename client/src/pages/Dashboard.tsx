@@ -50,8 +50,8 @@ export default function Dashboard({ linea, onMonthClick }: { linea: LineaNegocio
             value: m.mes,
             displayValue: formatCLP(m.ventas),
             segments: [
-              { value: m.ventasFee, color: FEE_VARIABLE_COLORS.fee, displayValue: formatCLP(m.ventasFee) },
-              { value: m.ventasVariable, color: FEE_VARIABLE_COLORS.variable }
+              { value: m.ventasFee, color: FEE_VARIABLE_COLORS.fee, displayValue: `F: ${formatCLP(m.ventasFee)}` },
+              { value: m.ventasVariable, color: FEE_VARIABLE_COLORS.variable, displayValue: `V: ${formatCLP(m.ventasVariable)}` }
             ]
           }))}
           trackColor="#efe9df"

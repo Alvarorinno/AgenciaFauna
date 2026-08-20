@@ -66,20 +66,18 @@ export default function ColumnChart({ title, items, trackColor = '#efe9df', lege
               >
                 <div className="flex flex-col items-center" style={{ marginBottom: 4 }}>
                   <span
+                    className="truncate"
+                    style={{ fontSize: 11, fontWeight: 600, color: '#5b5f6b', maxWidth: '100%' }}
+                    title={item.label}
+                  >
+                    {item.label}
+                  </span>
+                  <span
                     className="font-semibold"
-                    style={{ fontSize: 10.5, color: '#12192b', whiteSpace: 'nowrap' }}
+                    style={{ fontSize: 11.5, color: '#12192b', whiteSpace: 'nowrap' }}
                   >
                     {item.displayValue}
                   </span>
-                  {item.segments.filter(s => s.displayValue).map((s, i) => (
-                    <span
-                      key={i}
-                      className="font-semibold"
-                      style={{ fontSize: 9, color: s.color, whiteSpace: 'nowrap' }}
-                    >
-                      {s.displayValue}
-                    </span>
-                  ))}
                 </div>
                 <div
                   className="flex items-end"
@@ -96,13 +94,20 @@ export default function ColumnChart({ title, items, trackColor = '#efe9df', lege
                     })}
                   </div>
                 </div>
-                <span
-                  className="truncate"
-                  style={{ fontSize: 11.5, color: '#5b5f6b', marginTop: 6, maxWidth: '100%' }}
-                  title={item.label}
-                >
-                  {item.label}
-                </span>
+                <div className="flex flex-col items-center" style={{ marginTop: 6 }}>
+                  {/* Se invierte el orden respecto al de apilado de la barra (que va de
+                      abajo hacia arriba) para mostrar las etiquetas en el orden natural
+                      de lectura, ej. Variable antes que Fee. */}
+                  {[...item.segments].reverse().filter(s => s.displayValue).map((s, i) => (
+                    <span
+                      key={i}
+                      className="font-semibold"
+                      style={{ fontSize: 9.5, color: s.color, whiteSpace: 'nowrap' }}
+                    >
+                      {s.displayValue}
+                    </span>
+                  ))}
+                </div>
               </div>
             );
           })}

@@ -30,7 +30,7 @@ export default function Eventos({ linea, presetMes, onPresetConsumed }: {
   const { user } = useAuth();
   const [rows, setRows] = useState<Cotizacion[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filters, setFilters] = useState({ mes: 'todos', cliente: 'todos', estadoPago: 'todos', tipoIngreso: 'todos' });
+  const [filters, setFilters] = useState({ mes: 'todos', cliente: 'todos', estadoPago: 'todos', tipoIngreso: 'todos', facturado: 'todos' });
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
 
   // Al llegar desde el gráfico "Ventas por Mes" del dashboard, se preselecciona
@@ -71,11 +71,16 @@ export default function Eventos({ linea, presetMes, onPresetConsumed }: {
 
   const clientes = useMemo(() => Array.from(new Set(rows.map(r => r.cliente).filter(Boolean))).sort(), [rows]);
 
+  // Mismo criterio que "Saldo por Facturar" en el dashboard: tiene factura si
+  // el campo no está vacío, independiente del estado_pago.
+  const tieneFactura = (r: Cotizacion) => !!r.factura && r.factura.trim() !== '';
+
   const filteredRows = rows.filter(r =>
     (filters.mes === 'todos' || r.mes === filters.mes) &&
     (filters.cliente === 'todos' || r.cliente === filters.cliente) &&
     (filters.estadoPago === 'todos' || r.estado_pago === filters.estadoPago) &&
-    (filters.tipoIngreso === 'todos' || r.tipo_ingreso === filters.tipoIngreso)
+    (filters.tipoIngreso === 'todos' || r.tipo_ingreso === filters.tipoIngreso) &&
+    (filters.facturado === 'todos' || (filters.facturado === 'facturado' ? tieneFactura(r) : !tieneFactura(r)))
   );
 
   // Totales de la sección "Calculado" para las filas visibles (respeta los filtros activos).
@@ -143,6 +148,8 @@ export default function Eventos({ linea, presetMes, onPresetConsumed }: {
           options={['todos', 'pagado', 'saldo', 'na']} display={v => v === 'todos' ? 'Todos' : ESTADO_BADGE[v as EstadoPago].label} />
         <FilterSelect label="Fee / Variable" value={filters.tipoIngreso} onChange={v => setFilters(f => ({ ...f, tipoIngreso: v }))}
           options={['todos', 'fee', 'variable']} display={v => v === 'todos' ? 'Todos' : TIPO_INGRESO_BADGE[v as TipoIngreso].label} />
+        <FilterSelect label="Facturado" value={filters.facturado} onChange={v => setFilters(f => ({ ...f, facturado: v }))}
+          options={['todos', 'facturado', 'no_facturado']} display={v => v === 'todos' ? 'Todos' : v === 'facturado' ? 'Facturado' : 'No facturado'} />
 
         {canEditEncargado && (
           <button
@@ -211,17 +218,17 @@ export default function Eventos({ linea, presetMes, onPresetConsumed }: {
                   </td>
                   <td style={{ ...cellStyle, ...dimStyle(canEditEncargado) }}>
                     {row.editing && canEditEncargado ? (
-                      <input style={inputStyle} value={row.cliente} onChange={e => patchRow(row.id, { cliente: e.target.value })} />
+                      <input style={{ ...inputStyle, textTransform: 'uppercase' }} value={row.cliente} onChange={e => patchRow(row.id, { cliente: e.target.value.toUpperCase() })} />
                     ) : row.cliente}
                   </td>
                   <td style={{ ...cellStyle, ...dimStyle(canEditEncargado) }}>
                     {row.editing && canEditEncargado ? (
-                      <input style={inputStyle} value={row.proyecto} onChange={e => patchRow(row.id, { proyecto: e.target.value })} />
+                      <input style={{ ...inputStyle, textTransform: 'uppercase' }} value={row.proyecto} onChange={e => patchRow(row.id, { proyecto: e.target.value.toUpperCase() })} />
                     ) : row.proyecto}
                   </td>
                   <td style={{ ...cellStyle, ...dimStyle(canEditEncargado), maxWidth: 220 }}>
                     {row.editing && canEditEncargado ? (
-                      <textarea style={{ ...inputStyle, resize: 'vertical' }} rows={2} value={row.descripcion} onChange={e => patchRow(row.id, { descripcion: e.target.value })} />
+                      <textarea style={{ ...inputStyle, resize: 'vertical', textTransform: 'uppercase' }} rows={2} value={row.descripcion} onChange={e => patchRow(row.id, { descripcion: e.target.value.toUpperCase() })} />
                     ) : (
                       <span className="line-clamp-2 block" title={row.descripcion}>{row.descripcion}</span>
                     )}
@@ -260,7 +267,7 @@ export default function Eventos({ linea, presetMes, onPresetConsumed }: {
                   {/* Finanzas section */}
                   <td style={{ ...cellStyle, background: '#faf3e2', ...dimStyle(canEditFinanzas) }}>
                     {row.editing && canEditFinanzas ? (
-                      <input style={financeInputStyle} value={row.factura ?? ''} onChange={e => patchRow(row.id, { factura: e.target.value })} />
+                      <input style={{ ...financeInputStyle, textTransform: 'uppercase' }} value={row.factura ?? ''} onChange={e => patchRow(row.id, { factura: e.target.value.toUpperCase() })} />
                     ) : (row.factura || '—')}
                   </td>
                   <td style={{ ...cellStyle, background: '#faf3e2', ...dimStyle(canEditFinanzas) }}>

@@ -207,17 +207,17 @@ export default function Cotizaciones({ linea }: { linea: LineaNegocio }) {
                   </td>
                   <td style={{ ...cellStyle, ...dimStyle(canEdit) }}>
                     {row.editing && canEdit ? (
-                      <input style={inputStyle} value={row.cliente} onChange={e => patchRow(row.id, { cliente: e.target.value })} />
+                      <input style={{ ...inputStyle, textTransform: 'uppercase' }} value={row.cliente} onChange={e => patchRow(row.id, { cliente: e.target.value.toUpperCase() })} />
                     ) : row.cliente}
                   </td>
                   <td style={{ ...cellStyle, ...dimStyle(canEdit) }}>
                     {row.editing && canEdit ? (
-                      <input style={inputStyle} value={row.proyecto} onChange={e => patchRow(row.id, { proyecto: e.target.value })} />
+                      <input style={{ ...inputStyle, textTransform: 'uppercase' }} value={row.proyecto} onChange={e => patchRow(row.id, { proyecto: e.target.value.toUpperCase() })} />
                     ) : row.proyecto}
                   </td>
                   <td style={{ ...cellStyle, ...dimStyle(canEdit), maxWidth: 220 }}>
                     {row.editing && canEdit ? (
-                      <textarea style={{ ...inputStyle, resize: 'vertical' }} rows={2} value={row.descripcion} onChange={e => patchRow(row.id, { descripcion: e.target.value })} />
+                      <textarea style={{ ...inputStyle, resize: 'vertical', textTransform: 'uppercase' }} rows={2} value={row.descripcion} onChange={e => patchRow(row.id, { descripcion: e.target.value.toUpperCase() })} />
                     ) : (
                       <span className="line-clamp-2 block" title={row.descripcion}>{row.descripcion}</span>
                     )}
