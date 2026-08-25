@@ -64,27 +64,6 @@ export default function Dashboard({ linea, onMonthClick }: { linea: LineaNegocio
         />
       </div>
 
-      <div className="mb-6">
-        <BarLineChart
-          title="Presupuesto vs Costos por Mes"
-          items={stats.ventasPorMes.map(m => ({
-            label: capitalize(m.mes).slice(0, 3),
-            bars: [
-              { value: m.ventas, color: '#c8a24a' },
-              { value: m.costoReal, color: '#6d2632' }
-            ],
-            lineValue: m.ventas === 0 ? 0 : Math.round(((m.ventas - m.costoReal) / m.ventas) * 1000) / 10
-          }))}
-          legend={[
-            { label: 'Presupuesto', color: '#c8a24a' },
-            { label: 'Costos', color: '#6d2632' },
-            { label: 'Margen Bruto', color: '#1f7a4d', dashed: true }
-          ]}
-          formatBarValue={formatCLP}
-          formatLineValue={v => `${v.toFixed(1)}%`}
-        />
-      </div>
-
       <div className="grid" style={{ gridTemplateColumns: '1fr 1fr 0.7fr', gap: 16 }}>
         <PieChart
           title="Ventas por Cliente"
@@ -106,6 +85,27 @@ export default function Dashboard({ linea, onMonthClick }: { linea: LineaNegocio
             <EstadoRow dot="#c3c7c2" label="Sin aplicar" count={estados.na?.count ?? 0} monto={estados.na?.monto ?? 0} />
           </div>
         </div>
+      </div>
+
+      <div className="mt-6">
+        <BarLineChart
+          title="Presupuesto vs Costos por Mes"
+          items={stats.ventasPorMes.map(m => ({
+            label: capitalize(m.mes).slice(0, 3),
+            bars: [
+              { value: m.ventas, color: '#c8a24a' },
+              { value: m.costoReal, color: '#6d2632' }
+            ],
+            lineValue: m.ventas === 0 ? 0 : Math.round(((m.ventas - m.costoReal) / m.ventas) * 1000) / 10
+          }))}
+          legend={[
+            { label: 'Presupuesto', color: '#c8a24a' },
+            { label: 'Costos', color: '#6d2632' },
+            { label: 'Margen Bruto', color: '#1f7a4d', dashed: true }
+          ]}
+          formatBarValue={formatCLP}
+          formatLineValue={v => `${v.toFixed(1)}%`}
+        />
       </div>
 
       <div className="grid mt-6" style={{ gridTemplateColumns: '1fr 1fr 0.7fr', gap: 16 }}>

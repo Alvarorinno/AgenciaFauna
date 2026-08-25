@@ -93,6 +93,25 @@ export default function DashboardGeneral() {
         />
       </div>
 
+      <div className="grid mb-6" style={{ gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+        <BarList
+          title="Utilidad por Cliente"
+          items={stats.utilidadPorCliente.map(c => ({ label: c.cliente, value: c.utilidad, displayValue: formatCLP(c.utilidad) }))}
+          trackColor="#eaf3ec"
+          fillColor="#1f7a4d"
+          valueColor="#1f7a4d"
+        />
+
+        <div className="bg-white" style={{ border: '1px solid #dfd8c8', borderRadius: 12, padding: '20px 22px' }}>
+          <h3 className="title-serif font-semibold mb-4" style={{ fontSize: 16, color: '#12192b' }}>Facturación por Estado</h3>
+          <div className="space-y-3">
+            <EstadoRow dot="#1f7a4d" label="Pagado" count={estados.pagado?.count ?? 0} monto={estados.pagado?.monto ?? 0} />
+            <EstadoRow dot="#c8a24a" label="Saldo x Facturar" count={estados.saldo?.count ?? 0} monto={estados.saldo?.monto ?? 0} />
+            <EstadoRow dot="#c3c7c2" label="Sin aplicar" count={estados.na?.count ?? 0} monto={estados.na?.monto ?? 0} />
+          </div>
+        </div>
+      </div>
+
       <div className="mb-6">
         <BarLineChart
           title="Presupuesto vs Costos por Mes"
@@ -112,25 +131,6 @@ export default function DashboardGeneral() {
           formatBarValue={formatCLP}
           formatLineValue={v => `${v.toFixed(1)}%`}
         />
-      </div>
-
-      <div className="grid" style={{ gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-        <BarList
-          title="Utilidad por Cliente"
-          items={stats.utilidadPorCliente.map(c => ({ label: c.cliente, value: c.utilidad, displayValue: formatCLP(c.utilidad) }))}
-          trackColor="#eaf3ec"
-          fillColor="#1f7a4d"
-          valueColor="#1f7a4d"
-        />
-
-        <div className="bg-white" style={{ border: '1px solid #dfd8c8', borderRadius: 12, padding: '20px 22px' }}>
-          <h3 className="title-serif font-semibold mb-4" style={{ fontSize: 16, color: '#12192b' }}>Facturación por Estado</h3>
-          <div className="space-y-3">
-            <EstadoRow dot="#1f7a4d" label="Pagado" count={estados.pagado?.count ?? 0} monto={estados.pagado?.monto ?? 0} />
-            <EstadoRow dot="#c8a24a" label="Saldo x Facturar" count={estados.saldo?.count ?? 0} monto={estados.saldo?.monto ?? 0} />
-            <EstadoRow dot="#c3c7c2" label="Sin aplicar" count={estados.na?.count ?? 0} monto={estados.na?.monto ?? 0} />
-          </div>
-        </div>
       </div>
 
       <div className="grid mt-6" style={{ gridTemplateColumns: '1fr 1fr', gap: 16 }}>
