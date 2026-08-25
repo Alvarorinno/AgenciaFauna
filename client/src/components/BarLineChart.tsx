@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { formatCLPCompact } from '../utils';
 
 interface BarSeg {
   value: number;
@@ -39,8 +40,23 @@ interface Props {
 // disponible, evitando que se vea borroso/deformado.
 const H = 240;
 const MARGIN_BOTTOM = 26;
+const MARGIN_LEFT = 56;
+const MARGIN_RIGHT = 46;
 const PLOT_H = H - MARGIN_BOTTOM;
 const DEFAULT_W = 800;
+const TICKS = 4;
+
+// Redondea hacia arriba a un número "lindo" (1/2/5 × 10^n) para que las
+// referencias del eje izquierdo ($) no queden en cifras arbitrarias como
+// $837.492, sino en cortes legibles como $800.000 o $1.000.000.
+function niceMax(v: number): number {
+  if (v <= 0) return 1;
+  const exp = Math.floor(Math.log10(v));
+  const base = Math.pow(10, exp);
+  const norm = v / base;
+  const niceNorm = norm <= 1 ? 1 : norm <= 2 ? 2 : norm <= 5 ? 5 : 10;
+  return niceNorm * base;
+}
 
 export default function BarLineChart({ title, items, legend, formatBarValue, formatLineValue }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -59,7 +75,8 @@ export default function BarLineChart({ title, items, legend, formatBarValue, for
   }, []);
 
   const n = items.length;
-  const barMax = Math.max(1, ...items.flatMap(i => i.bars.map(b => b.value)));
+  const rawBarMax = Math.max(1, ...items.flatMap(i => i.bars.map(b => b.value)));
+  const barMax = niceMax(rawBarMax);
 
   const lineValues = items.map(i => i.lineValue);
   const rawMax = Math.max(0, ...lineValues);
@@ -69,7 +86,8 @@ export default function BarLineChart({ title, items, legend, formatBarValue, for
   const lineMin = rawMin - pad;
   const lineRange = lineMax - lineMin || 1;
 
-  const slotW = n > 0 ? W / n : W;
+  const plotW = Math.max(0, W - MARGIN_LEFT - MARGIN_RIGHT);
+  const slotW = n > 0 ? plotW / n : plotW;
   const barsPerGroup = items[0]?.bars.length ?? 0;
   const groupW = slotW * 0.55;
   const gap = 3;
@@ -78,10 +96,22 @@ export default function BarLineChart({ title, items, legend, formatBarValue, for
   const lineColor = legend.find(l => l.dashed)?.color ?? '#1f7a4d';
 
   const linePoints = items.map((item, i) => ({
-    x: i * slotW + slotW / 2,
+    x: MARGIN_LEFT + i * slotW + slotW / 2,
     y: PLOT_H - ((item.lineValue - lineMin) / lineRange) * PLOT_H,
     value: item.lineValue
   }));
+
+  // Líneas de referencia horizontales compartidas por ambos ejes: a cada
+  // altura le corresponde un valor $ (eje izquierdo, escala de las barras) y
+  // un valor % (eje derecho, escala de la línea de Margen Bruto).
+  const ticks = Array.from({ length: TICKS + 1 }, (_, i) => {
+    const frac = i / TICKS;
+    return {
+      y: PLOT_H - frac * PLOT_H,
+      barValue: frac * barMax,
+      lineValue: lineMin + frac * lineRange
+    };
+  });
 
   return (
     <div className="bg-white" style={{ border: '1px solid #dfd8c8', borderRadius: 12, padding: '20px 22px' }}>
@@ -106,9 +136,26 @@ export default function BarLineChart({ title, items, legend, formatBarValue, for
       {items.length > 0 && (
         <div ref={containerRef} style={{ width: '100%' }}>
           <svg viewBox={`0 0 ${W} ${H}`} width={W} height={H} style={{ width: '100%', height: 'auto', display: 'block' }}>
-            <line x1={0} y1={PLOT_H} x2={W} y2={PLOT_H} stroke="#efe9df" strokeWidth={1.5} />
+            {ticks.map((t, i) => (
+              <g key={i}>
+                <line
+                  x1={MARGIN_LEFT}
+                  y1={t.y}
+                  x2={W - MARGIN_RIGHT}
+                  y2={t.y}
+                  stroke="#efe9df"
+                  strokeWidth={i === 0 ? 1.5 : 1}
+                />
+                <text x={MARGIN_LEFT - 8} y={t.y + 3.5} textAnchor="end" fontSize={10} fill="#9aa0ad">
+                  {formatCLPCompact(t.barValue)}
+                </text>
+                <text x={W - MARGIN_RIGHT + 8} y={t.y + 3.5} textAnchor="start" fontSize={10} fill="#9aa0ad">
+                  {formatLineValue(t.lineValue)}
+                </text>
+              </g>
+            ))}
             {items.map((item, i) => {
-              const groupX = i * slotW + (slotW - groupW) / 2;
+              const groupX = MARGIN_LEFT + i * slotW + (slotW - groupW) / 2;
               return (
                 <g key={item.label}>
                   {item.bars.map((b, j) => {
@@ -121,7 +168,7 @@ export default function BarLineChart({ title, items, legend, formatBarValue, for
                       </rect>
                     );
                   })}
-                  <text x={i * slotW + slotW / 2} y={PLOT_H + 18} textAnchor="middle" fontSize={11} fontWeight={600} fill="#5b5f6b">
+                  <text x={MARGIN_LEFT + i * slotW + slotW / 2} y={PLOT_H + 18} textAnchor="middle" fontSize={11} fontWeight={600} fill="#5b5f6b">
                     {item.label}
                   </text>
                 </g>
