@@ -112,7 +112,7 @@ export default function DashboardGeneral() {
         </div>
       </div>
 
-      <div className="mb-6">
+      <div className="grid mt-6" style={{ gridTemplateColumns: '2fr 1fr', gap: 16 }}>
         <BarLineChart
           title="Presupuesto vs Costos por Mes"
           items={stats.ventasPorMes.map(m => ({
@@ -131,9 +131,6 @@ export default function DashboardGeneral() {
           formatBarValue={formatCLP}
           formatLineValue={v => `${v.toFixed(1)}%`}
         />
-      </div>
-
-      <div className="grid mt-6" style={{ gridTemplateColumns: '1fr 1fr', gap: 16 }}>
         <PieChart
           title="Clientes sin Facturar"
           items={stats.clientesSinFacturar.map(c => ({ label: c.cliente, value: c.monto, displayValue: formatCLP(c.monto) }))}
