@@ -1,3 +1,5 @@
+import { useEffect, useRef, useState } from 'react';
+
 interface BarSeg {
   value: number;
   color: string;
@@ -30,12 +32,32 @@ interface Props {
 // independiente) para comparar dos series monetarias por mes (ej. Presupuesto
 // vs Costos) junto con un indicador porcentual (ej. Margen Bruto) que se
 // mueve en una escala propia para aprovechar todo el alto disponible.
-const W = 1200;
+//
+// El SVG se dibuja a escala 1:1 (viewBox = ancho real del contenedor medido
+// con ResizeObserver) en vez de usar un viewBox fijo con preserveAspectRatio
+// "none": así el texto no se estira de forma no-uniforme al variar el ancho
+// disponible, evitando que se vea borroso/deformado.
 const H = 240;
 const MARGIN_BOTTOM = 26;
 const PLOT_H = H - MARGIN_BOTTOM;
+const DEFAULT_W = 800;
 
 export default function BarLineChart({ title, items, legend, formatBarValue, formatLineValue }: Props) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [W, setW] = useState(DEFAULT_W);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(entries => {
+      const w = entries[0]?.contentRect.width;
+      if (w && Math.round(w) !== Math.round(W)) setW(w);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const n = items.length;
   const barMax = Math.max(1, ...items.flatMap(i => i.bars.map(b => b.value)));
 
@@ -82,41 +104,43 @@ export default function BarLineChart({ title, items, legend, formatBarValue, for
       </div>
       {items.length === 0 && <p style={{ fontSize: 13, color: '#9aa0ad' }}>Sin datos.</p>}
       {items.length > 0 && (
-        <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={220} preserveAspectRatio="none">
-          <line x1={0} y1={PLOT_H} x2={W} y2={PLOT_H} stroke="#efe9df" strokeWidth={1.5} />
-          {items.map((item, i) => {
-            const groupX = i * slotW + (slotW - groupW) / 2;
-            return (
-              <g key={item.label}>
-                {item.bars.map((b, j) => {
-                  const h = (b.value / barMax) * PLOT_H;
-                  const x = groupX + j * (barW + gap);
-                  const y = PLOT_H - h;
-                  return (
-                    <rect key={j} x={x} y={y} width={Math.max(0, barW)} height={Math.max(0, h)} fill={b.color} rx={2}>
-                      <title>{`${item.label}: ${formatBarValue(b.value)}`}</title>
-                    </rect>
-                  );
-                })}
-                <text x={i * slotW + slotW / 2} y={PLOT_H + 18} textAnchor="middle" fontSize={11} fontWeight={600} fill="#5b5f6b">
-                  {item.label}
-                </text>
-              </g>
-            );
-          })}
-          <polyline
-            points={linePoints.map(p => `${p.x},${p.y}`).join(' ')}
-            fill="none"
-            stroke={lineColor}
-            strokeWidth={2}
-            strokeDasharray="5 4"
-          />
-          {linePoints.map((p, i) => (
-            <circle key={i} cx={p.x} cy={p.y} r={3.5} fill={lineColor}>
-              <title>{`${items[i].label}: ${formatLineValue(p.value)}`}</title>
-            </circle>
-          ))}
-        </svg>
+        <div ref={containerRef} style={{ width: '100%' }}>
+          <svg viewBox={`0 0 ${W} ${H}`} width={W} height={H} style={{ width: '100%', height: 'auto', display: 'block' }}>
+            <line x1={0} y1={PLOT_H} x2={W} y2={PLOT_H} stroke="#efe9df" strokeWidth={1.5} />
+            {items.map((item, i) => {
+              const groupX = i * slotW + (slotW - groupW) / 2;
+              return (
+                <g key={item.label}>
+                  {item.bars.map((b, j) => {
+                    const h = (b.value / barMax) * PLOT_H;
+                    const x = groupX + j * (barW + gap);
+                    const y = PLOT_H - h;
+                    return (
+                      <rect key={j} x={x} y={y} width={Math.max(0, barW)} height={Math.max(0, h)} fill={b.color} rx={2}>
+                        <title>{`${item.label}: ${formatBarValue(b.value)}`}</title>
+                      </rect>
+                    );
+                  })}
+                  <text x={i * slotW + slotW / 2} y={PLOT_H + 18} textAnchor="middle" fontSize={11} fontWeight={600} fill="#5b5f6b">
+                    {item.label}
+                  </text>
+                </g>
+              );
+            })}
+            <polyline
+              points={linePoints.map(p => `${p.x},${p.y}`).join(' ')}
+              fill="none"
+              stroke={lineColor}
+              strokeWidth={2}
+              strokeDasharray="5 4"
+            />
+            {linePoints.map((p, i) => (
+              <circle key={i} cx={p.x} cy={p.y} r={3.5} fill={lineColor}>
+                <title>{`${items[i].label}: ${formatLineValue(p.value)}`}</title>
+              </circle>
+            ))}
+          </svg>
+        </div>
       )}
     </div>
   );
