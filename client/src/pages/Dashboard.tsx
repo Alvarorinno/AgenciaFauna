@@ -119,20 +119,20 @@ function UtilidadCard({ totalUtilidad, comisionAgencia }: { totalUtilidad: numbe
   const utilidadNegocio = totalUtilidad - comisionAgencia;
   return (
     <div className="bg-white" style={{ border: '1px solid #dfd8c8', borderRadius: 12, padding: '20px 22px' }}>
-      <p style={{ fontSize: 12.5, color: '#5b5f6b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.3 }}>
+      <p style={{ fontSize: 13.5, color: '#5b5f6b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.3 }}>
         Total Utilidad
       </p>
-      <p className="mt-2 font-bold" style={{ fontSize: 26, color: '#1f7a4d' }}>
+      <p className="mt-2 font-bold" style={{ fontSize: 32, color: '#1f7a4d' }}>
         {formatCLPCompact(totalUtilidad)}
       </p>
       <div className="mt-2 space-y-1" style={{ paddingTop: 8, borderTop: '1px solid #efe9df' }}>
         <div className="flex items-center justify-between">
-          <span style={{ fontSize: 12, color: '#5b5f6b' }}>Markup</span>
-          <span style={{ fontSize: 12.5, fontWeight: 600, color: '#1f7a4d' }}>{formatCLPCompact(utilidadNegocio)}</span>
+          <span style={{ fontSize: 13, color: '#5b5f6b' }}>Markup</span>
+          <span style={{ fontSize: 13.5, fontWeight: 600, color: '#1f7a4d' }}>{formatCLPCompact(utilidadNegocio)}</span>
         </div>
         <div className="flex items-center justify-between">
-          <span style={{ fontSize: 12, color: '#5b5f6b' }}>Comisión Agencia</span>
-          <span style={{ fontSize: 12.5, fontWeight: 600, color: '#8a6a1f' }}>{formatCLPCompact(comisionAgencia)}</span>
+          <span style={{ fontSize: 13, color: '#5b5f6b' }}>Comisión Agencia</span>
+          <span style={{ fontSize: 13.5, fontWeight: 600, color: '#8a6a1f' }}>{formatCLPCompact(comisionAgencia)}</span>
         </div>
       </div>
     </div>
