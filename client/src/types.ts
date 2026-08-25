@@ -103,6 +103,7 @@ export interface MesVentas {
   ventas: number;
   ventasFee: number;
   ventasVariable: number;
+  costoReal: number;
 }
 
 export interface ClienteAgg {

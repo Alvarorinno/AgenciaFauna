@@ -5,6 +5,7 @@ import StatCard from '../components/StatCard';
 import BarList from '../components/BarList';
 import ColumnChart from '../components/ColumnChart';
 import PieChart from '../components/PieChart';
+import BarLineChart from '../components/BarLineChart';
 import { formatCLP, formatCLPCompact, capitalize, FEE_VARIABLE_COLORS } from '../utils';
 
 const LINEA_LABELS: Record<LineaNegocio, string> = { fauna_rd: 'Fauna RD', agencia: 'Agencia' };
@@ -60,6 +61,27 @@ export default function Dashboard({ linea, onMonthClick }: { linea: LineaNegocio
             { label: 'Variable', color: FEE_VARIABLE_COLORS.variable }
           ]}
           onItemClick={onMonthClick}
+        />
+      </div>
+
+      <div className="mb-6">
+        <BarLineChart
+          title="Presupuesto vs Costos por Mes"
+          items={stats.ventasPorMes.map(m => ({
+            label: capitalize(m.mes).slice(0, 3),
+            bars: [
+              { value: m.ventas, color: '#c8a24a' },
+              { value: m.costoReal, color: '#6d2632' }
+            ],
+            lineValue: m.ventas === 0 ? 0 : Math.round(((m.ventas - m.costoReal) / m.ventas) * 1000) / 10
+          }))}
+          legend={[
+            { label: 'Presupuesto', color: '#c8a24a' },
+            { label: 'Costos', color: '#6d2632' },
+            { label: 'Margen Bruto', color: '#1f7a4d', dashed: true }
+          ]}
+          formatBarValue={formatCLP}
+          formatLineValue={v => `${v.toFixed(1)}%`}
         />
       </div>
 

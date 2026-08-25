@@ -82,8 +82,9 @@ router.get('/', async (req, res) => {
     const tipoIngreso = r.tipo_ingreso === 'variable' ? 'variable' : 'fee';
 
     if (r.mes) {
-      if (!porMes[r.mes]) porMes[r.mes] = { mes: r.mes, ventas: 0, ventasFee: 0, ventasVariable: 0 };
+      if (!porMes[r.mes]) porMes[r.mes] = { mes: r.mes, ventas: 0, ventasFee: 0, ventasVariable: 0, costoReal: 0 };
       porMes[r.mes].ventas += costoCliente;
+      porMes[r.mes].costoReal += costoReal;
       if (tipoIngreso === 'variable') porMes[r.mes].ventasVariable += costoCliente;
       else porMes[r.mes].ventasFee += costoCliente;
     }
@@ -108,7 +109,7 @@ router.get('/', async (req, res) => {
 
   // Se listan los 12 meses siempre (no solo los que tienen ventas), para que el
   // gráfico de Ventas por Mes muestre el año completo con los meses sin datos en 0.
-  const ventasPorMes = MESES.map(m => porMes[m] ?? { mes: m, ventas: 0, ventasFee: 0, ventasVariable: 0 });
+  const ventasPorMes = MESES.map(m => porMes[m] ?? { mes: m, ventas: 0, ventasFee: 0, ventasVariable: 0, costoReal: 0 });
 
   const clientesArr = Object.values(porCliente);
   const ventasPorCliente = [...clientesArr].sort((a, b) => b.ventas - a.ventas).slice(0, 6);
