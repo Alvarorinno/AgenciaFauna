@@ -85,6 +85,13 @@ export default function Dashboard({ linea, onMonthClick }: { linea: LineaNegocio
           </div>
         </div>
       </div>
+
+      <div className="grid mt-6" style={{ gridTemplateColumns: '1fr 1fr 0.7fr', gap: 16 }}>
+        <PieChart
+          title="Clientes sin Facturar"
+          items={stats.clientesSinFacturar.map(c => ({ label: c.cliente, value: c.monto, displayValue: formatCLP(c.monto) }))}
+        />
+      </div>
     </div>
   );
 }

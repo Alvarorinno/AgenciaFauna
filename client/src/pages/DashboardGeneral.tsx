@@ -4,6 +4,7 @@ import type { Stats } from '../types';
 import StatCard from '../components/StatCard';
 import BarList from '../components/BarList';
 import ColumnChart from '../components/ColumnChart';
+import PieChart from '../components/PieChart';
 import { formatCLP, formatCLPCompact, capitalize, FEE_VARIABLE_COLORS } from '../utils';
 
 const LINEA_LABELS = { fauna_rd: 'Fauna RD', agencia: 'Agencia' } as const;
@@ -108,6 +109,13 @@ export default function DashboardGeneral() {
             <EstadoRow dot="#c3c7c2" label="Sin aplicar" count={estados.na?.count ?? 0} monto={estados.na?.monto ?? 0} />
           </div>
         </div>
+      </div>
+
+      <div className="grid mt-6" style={{ gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+        <PieChart
+          title="Clientes sin Facturar"
+          items={stats.clientesSinFacturar.map(c => ({ label: c.cliente, value: c.monto, displayValue: formatCLP(c.monto) }))}
+        />
       </div>
     </div>
   );

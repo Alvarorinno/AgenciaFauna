@@ -111,6 +111,11 @@ export interface ClienteAgg {
   utilidad: number;
 }
 
+export interface ClienteMonto {
+  cliente: string;
+  monto: number;
+}
+
 export interface LineaStats {
   totalCotizado: number;
   totalUtilidad: number;
@@ -131,6 +136,7 @@ export interface Stats {
   ventasPorMes: MesVentas[];
   ventasPorCliente: ClienteAgg[];
   utilidadPorCliente: ClienteAgg[];
+  clientesSinFacturar: ClienteMonto[];
   facturacionPorEstado: Record<EstadoPago, { count: number; monto: number }>;
   cotizacionesPorTipoIngreso: Record<TipoIngreso, { count: number; monto: number }>;
   porLinea: Record<LineaNegocio, LineaStats>;

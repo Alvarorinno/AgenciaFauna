@@ -29,6 +29,7 @@ router.get('/', async (req, res) => {
   let totalCotizacionesARevisar = 0;
   const porMes = {};
   const porCliente = {};
+  const porClienteSinFacturar = {};
   const porEstado = { pagado: { count: 0, monto: 0 }, saldo: { count: 0, monto: 0 }, na: { count: 0, monto: 0 } };
   const porTipoIngreso = { fee: { count: 0, monto: 0 }, variable: { count: 0, monto: 0 } };
   const porLinea = {
@@ -64,6 +65,10 @@ router.get('/', async (req, res) => {
     // finanzas y no siempre refleja si ya se emitió la factura).
     const sinFactura = !r.factura || String(r.factura).trim() === '';
     if (sinFactura) saldoPorFacturar += costoCliente;
+    if (sinFactura && r.cliente) {
+      if (!porClienteSinFacturar[r.cliente]) porClienteSinFacturar[r.cliente] = { cliente: r.cliente, monto: 0 };
+      porClienteSinFacturar[r.cliente].monto += costoCliente;
+    }
 
     if (porLinea[r.linea_negocio]) {
       porLinea[r.linea_negocio].totalCotizado += costoCliente;
@@ -109,6 +114,10 @@ router.get('/', async (req, res) => {
   const ventasPorCliente = [...clientesArr].sort((a, b) => b.ventas - a.ventas).slice(0, 6);
   const utilidadPorCliente = [...clientesArr].sort((a, b) => b.utilidad - a.utilidad).slice(0, 6);
 
+  // Mismo criterio "sin factura" que Saldo por Facturar, agrupado por cliente
+  // para el gráfico de torta "Clientes sin Facturar" del dashboard.
+  const clientesSinFacturar = Object.values(porClienteSinFacturar).sort((a, b) => b.monto - a.monto).slice(0, 6);
+
   res.json({
     totalCotizado,
     totalUtilidad,
@@ -120,6 +129,7 @@ router.get('/', async (req, res) => {
     ventasPorMes,
     ventasPorCliente,
     utilidadPorCliente,
+    clientesSinFacturar,
     facturacionPorEstado: porEstado,
     cotizacionesPorTipoIngreso: porTipoIngreso,
     porLinea
