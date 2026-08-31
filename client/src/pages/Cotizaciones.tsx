@@ -122,6 +122,17 @@ export default function Cotizaciones({ linea }: { linea: LineaNegocio }) {
     setRows(prev => [{ ...created, editing: true }, ...prev]);
   }
 
+  // Al duplicar una cotización desde su detalle, la copia entra arriba de la
+  // lista (igual que handleAdd), queda como única fila expandida y se le hace
+  // scroll para que la persona "llegue" directo a ella sin buscarla.
+  function handleDuplicated(nueva: Cotizacion) {
+    setRows(prev => [nueva, ...prev]);
+    setExpanded(new Set([nueva.id]));
+    requestAnimationFrame(() => {
+      document.getElementById(`cot-row-${nueva.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+  }
+
   async function handleAprobar(id: number) {
     if (!window.confirm('¿Aprobar esta cotización? Pasará directamente a Eventos / Proyectos y saldrá de esta lista.')) return;
     try {
@@ -244,7 +255,7 @@ export default function Cotizaciones({ linea }: { linea: LineaNegocio }) {
               const isExpanded = expanded.has(row.id);
               return (
                 <Fragment key={row.id}>
-                <tr style={{ borderTop: '1px solid #efe9df' }}>
+                <tr id={`cot-row-${row.id}`} style={{ borderTop: '1px solid #efe9df' }}>
                   <td style={cellStyle}>
                     <button onClick={() => toggleExpanded(row.id)} title="Ver detalle de proveedores"
                       style={{ width: 22, height: 22, color: '#5b5f6b', fontSize: 11 }}>
@@ -356,6 +367,7 @@ export default function Cotizaciones({ linea }: { linea: LineaNegocio }) {
                         cotizacion={row}
                         canEdit={canEdit}
                         onCotizacionUpdated={updated => patchRow(updated.id, updated)}
+                        onDuplicated={handleDuplicated}
                       />
                     </td>
                   </tr>

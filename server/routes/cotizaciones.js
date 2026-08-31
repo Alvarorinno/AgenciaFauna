@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { sql } from '../db.js';
 import { authMiddleware } from './auth.js';
-import { withDerived, withItemDerived, withGrupoDerived } from '../lib/calc.js';
+import { withDerived, withItemDerived, withGrupoDerived, recomputeTotales } from '../lib/calc.js';
 
 const router = Router();
 router.use(authMiddleware);
@@ -88,6 +88,66 @@ router.post('/', async (req, res) => {
   `;
 
   res.status(201).json(withDerived({ ...rows[0], grupos: [], tiene_detalle: false }));
+});
+
+// Duplica una cotización (o proyecto ya aprobado) junto con TODO su detalle
+// de proveedores (grupos + ítems, con las mismas cantidades y precios), para
+// reutilizarla como base de una nueva sin tener que volver a tipear todo.
+// Queda en el mismo estado_cotizacion que el original (si se duplica un
+// proyecto aprobado, la copia aparece directo en Eventos/Proyectos; si se
+// duplica una cotización pendiente, la copia aparece en el pipeline normal).
+// No se copian factura_proveedor/abonos ni datos de facturación del cliente:
+// son propios de la ejecución de ESA cotización, no del "molde" reutilizado.
+router.post('/:id/duplicate', async (req, res) => {
+  if (req.user.role !== 'encargado') {
+    return res.status(403).json({ error: 'Sin permiso para duplicar cotizaciones' });
+  }
+
+  const id = Number(req.params.id);
+  const existing = await sql`SELECT * FROM cotizaciones WHERE id = ${id}`;
+  if (!existing[0]) return res.status(404).json({ error: 'Cotización no encontrada' });
+  const original = existing[0];
+
+  if (original.linea_negocio !== req.user.linea_negocio) {
+    return res.status(403).json({ error: 'Sin permiso para duplicar cotizaciones de otra línea de negocio' });
+  }
+
+  const [{ m }] = await sql`SELECT MAX(n_cot) as m FROM cotizaciones`;
+  const nCot = (m || 0) + 1;
+
+  const [nueva] = await sql`
+    INSERT INTO cotizaciones (
+      n_cot, mes, cliente, proyecto, descripcion, costo_cliente, costo_real,
+      comision_pct, comision_monto, estado_pago, estado_cotizacion, linea_negocio, tipo_ingreso
+    )
+    VALUES (
+      ${nCot}, ${original.mes}, ${original.cliente}, ${original.proyecto}, ${original.descripcion},
+      0, 0, ${original.comision_pct || 0}, 0, 'na', ${original.estado_cotizacion}, ${original.linea_negocio}, ${original.tipo_ingreso}
+    )
+    RETURNING *
+  `;
+
+  const gruposOriginales = await sql`SELECT * FROM cotizacion_grupos WHERE cotizacion_id = ${id} ORDER BY orden, id`;
+  for (const g of gruposOriginales) {
+    const [nuevoGrupo] = await sql`
+      INSERT INTO cotizacion_grupos (cotizacion_id, nombre, proveedor, rut_proveedor, orden)
+      VALUES (${nueva.id}, ${g.nombre}, ${g.proveedor}, ${g.rut_proveedor}, ${g.orden})
+      RETURNING *
+    `;
+    const itemsOriginales = await sql`SELECT * FROM cotizacion_items WHERE grupo_id = ${g.id} ORDER BY orden, id`;
+    for (const it of itemsOriginales) {
+      await sql`
+        INSERT INTO cotizacion_items (grupo_id, nombre, cantidad, unidad, dias, unitario_cliente, unitario_costo, orden)
+        VALUES (${nuevoGrupo.id}, ${it.nombre}, ${it.cantidad}, ${it.unidad}, ${it.dias}, ${it.unitario_cliente}, ${it.unitario_costo}, ${it.orden})
+      `;
+    }
+  }
+
+  if (gruposOriginales.length > 0) await recomputeTotales(nueva.id);
+
+  const grupos = await fetchGrupos(nueva.id);
+  const [final] = await sql`SELECT * FROM cotizaciones WHERE id = ${nueva.id}`;
+  res.status(201).json(withDerived({ ...final, grupos, tiene_detalle: grupos.length > 0 }));
 });
 
 router.put('/:id', async (req, res) => {

@@ -33,6 +33,13 @@ export const deleteCotizacion = async (id: number): Promise<void> => {
   await api.delete(`/cotizaciones/${id}`);
 };
 
+// Duplica una cotización/proyecto junto con todo su detalle de proveedores
+// (grupos + ítems, mismos precios y cantidades) para reutilizarla como base.
+export const duplicateCotizacion = async (id: number): Promise<Cotizacion> => {
+  const { data } = await api.post(`/cotizaciones/${id}/duplicate`);
+  return data;
+};
+
 export const getStats = async (linea?: string): Promise<Stats> => {
   const { data } = await api.get('/stats', { params: linea ? { linea } : undefined });
   return data;

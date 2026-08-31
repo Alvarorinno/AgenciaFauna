@@ -4,7 +4,7 @@ import {
   createGrupo, updateGrupo, deleteGrupo,
   createItem, updateItem, deleteItem,
   getCotizaciones, downloadCotizacionClientePdf, downloadGrupoOcPdf,
-  updateComision
+  updateComision, duplicateCotizacion
 } from '../api';
 import { formatCLP } from '../utils';
 
@@ -12,6 +12,10 @@ interface Props {
   cotizacion: Cotizacion;
   canEdit: boolean;
   onCotizacionUpdated: (updated: Cotizacion) => void;
+  // Se llama con la cotización recién creada al duplicar; el padre (Cotizaciones/
+  // Eventos) es quien decide dónde insertarla en su lista y navegar a ella,
+  // ya que este componente solo conoce el detalle de UNA cotización a la vez.
+  onDuplicated?: (nueva: Cotizacion) => void;
 }
 
 const CLIENTE_BG = '#eaf3e6';
@@ -19,8 +23,9 @@ const CLIENTE_TEXT = '#1f7a4d';
 const COSTO_BG = '#e6eef7';
 const COSTO_TEXT = '#2c4a7c';
 
-export default function CotizacionDetalle({ cotizacion, canEdit, onCotizacionUpdated }: Props) {
+export default function CotizacionDetalle({ cotizacion, canEdit, onCotizacionUpdated, onDuplicated }: Props) {
   const [busy, setBusy] = useState(false);
+  const [duplicating, setDuplicating] = useState(false);
   const [editingGrupoId, setEditingGrupoId] = useState<number | null>(null);
   const [editingItemId, setEditingItemId] = useState<number | null>(null);
   const [draftGrupo, setDraftGrupo] = useState<Partial<CotizacionGrupo>>({});
@@ -32,6 +37,20 @@ export default function CotizacionDetalle({ cotizacion, canEdit, onCotizacionUpd
     const all = await getCotizaciones();
     const fresh = all.find(c => c.id === cotizacion.id);
     if (fresh) onCotizacionUpdated(fresh);
+  }
+
+  async function handleDuplicate() {
+    if (!window.confirm('¿Duplicar esta cotización? Se creará una nueva con los mismos proveedores, ítems, cantidades y precios.')) return;
+    setDuplicating(true);
+    try {
+      const nueva = await duplicateCotizacion(cotizacion.id);
+      onDuplicated?.(nueva);
+    } catch (err) {
+      console.error('Error al duplicar la cotización:', err);
+      alert('No se pudo duplicar la cotización. Intenta de nuevo.');
+    } finally {
+      setDuplicating(false);
+    }
   }
 
   async function handleAddGrupo() {
@@ -168,6 +187,16 @@ export default function CotizacionDetalle({ cotizacion, canEdit, onCotizacionUpd
           Detalle de proveedores. {cotizacion.tiene_detalle && 'Costo Cliente y Costo Real de la cotización se calculan automáticamente desde este detalle.'}
         </p>
         <div className="flex items-center gap-2">
+          {canEdit && (
+            <button
+              onClick={handleDuplicate}
+              disabled={duplicating}
+              title="Crear una nueva cotización con los mismos proveedores, ítems, cantidades y precios"
+              style={{ background: '#eef1fb', color: '#2c3e7c', padding: '6px 12px', borderRadius: 7, fontSize: 12, fontWeight: 700, opacity: duplicating ? 0.6 : 1 }}
+            >
+              ⧉ {duplicating ? 'Duplicando…' : 'Duplicar'}
+            </button>
+          )}
           <button
             onClick={() => downloadCotizacionClientePdf(cotizacion.id)}
             disabled={!cotizacion.tiene_detalle}

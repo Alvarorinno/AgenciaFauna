@@ -138,6 +138,17 @@ export default function Eventos({ linea, presetMes, onPresetConsumed }: {
     setRows(prev => prev.filter(r => r.id !== id));
   }
 
+  // Al duplicar un proyecto desde su detalle, la copia entra arriba de la
+  // lista, queda como única fila expandida y se le hace scroll para que la
+  // persona "llegue" directo a ella sin tener que buscarla.
+  function handleDuplicated(nueva: Cotizacion) {
+    setRows(prev => [nueva, ...prev]);
+    setExpanded(new Set([nueva.id]));
+    requestAnimationFrame(() => {
+      document.getElementById(`cot-row-${nueva.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+  }
+
   const dimStyle = (allowed: boolean): React.CSSProperties =>
     allowed ? {} : { opacity: 0.4, pointerEvents: 'none' };
 
@@ -207,7 +218,7 @@ export default function Eventos({ linea, presetMes, onPresetConsumed }: {
               const isExpanded = expanded.has(row.id);
               return (
                 <Fragment key={row.id}>
-                <tr style={{ borderTop: '1px solid #efe9df' }}>
+                <tr id={`cot-row-${row.id}`} style={{ borderTop: '1px solid #efe9df' }}>
                   <td style={cellStyle}>
                     <button onClick={() => toggleExpanded(row.id)} title="Ver detalle de proveedores"
                       style={{ width: 22, height: 22, color: '#5b5f6b', fontSize: 11 }}>
@@ -332,6 +343,7 @@ export default function Eventos({ linea, presetMes, onPresetConsumed }: {
                         cotizacion={row}
                         canEdit={canEditEncargado}
                         onCotizacionUpdated={updated => patchRow(updated.id, updated)}
+                        onDuplicated={handleDuplicated}
                       />
                     </td>
                   </tr>
