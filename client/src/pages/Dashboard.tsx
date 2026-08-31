@@ -26,6 +26,12 @@ export default function Dashboard({ linea, onMonthClick }: { linea: LineaNegocio
   const estados = stats.facturacionPorEstado;
   const tipoIngreso = stats.cotizacionesPorTipoIngreso;
 
+  // Los datos del dashboard no están acotados por año en la base (el campo `mes`
+  // es solo el nombre del mes) — se muestra el año en curso en cada título para
+  // dejar explícito el período que se está viendo.
+  const anio = new Date().getFullYear();
+  const conAnio = (titulo: string) => `${titulo} Año ${anio}`;
+
   // Utilidad (ventas - costoReal) acumulada mes a mes por tipo de ingreso, para
   // el gráfico de líneas "Utilidad Acumulada por Tipo de Ingreso" — deja ver si
   // el fee o el variable viene aportando más margen a lo largo del año.
@@ -58,7 +64,7 @@ export default function Dashboard({ linea, onMonthClick }: { linea: LineaNegocio
 
       <div className="mb-6">
         <ColumnChart
-          title="Ventas por Mes"
+          title={conAnio('Ventas por Mes')}
           items={stats.ventasPorMes.map(m => ({
             label: capitalize(m.mes),
             value: m.mes,
@@ -79,11 +85,11 @@ export default function Dashboard({ linea, onMonthClick }: { linea: LineaNegocio
 
       <div className="grid" style={{ gridTemplateColumns: '1fr 1fr 0.7fr', gap: 16 }}>
         <PieChart
-          title="Ventas por Cliente"
+          title={conAnio('Ventas por Cliente')}
           items={stats.ventasPorCliente.map(c => ({ label: c.cliente, value: c.ventas, displayValue: formatCLP(c.ventas) }))}
         />
         <BarList
-          title="Utilidad por Cliente"
+          title={conAnio('Utilidad por Cliente')}
           items={stats.utilidadPorCliente.map(c => ({ label: c.cliente, value: c.utilidad, displayValue: formatCLP(c.utilidad) }))}
           trackColor="#eaf3ec"
           fillColor="#1f7a4d"
@@ -91,7 +97,7 @@ export default function Dashboard({ linea, onMonthClick }: { linea: LineaNegocio
         />
 
         <div className="bg-white" style={{ border: '1px solid #dfd8c8', borderRadius: 12, padding: '16px 18px' }}>
-          <h3 className="title-serif font-semibold mb-3" style={{ fontSize: 14.5, color: '#12192b' }}>Facturación por Estado</h3>
+          <h3 className="title-serif font-semibold mb-3" style={{ fontSize: 14.5, color: '#12192b' }}>{conAnio('Facturación por Estado')}</h3>
           <div className="space-y-2.5">
             <EstadoRow dot="#1f7a4d" label="Pagado" count={estados.pagado?.count ?? 0} monto={estados.pagado?.monto ?? 0} />
             <EstadoRow dot="#c8a24a" label="Saldo x Facturar" count={estados.saldo?.count ?? 0} monto={estados.saldo?.monto ?? 0} />
@@ -102,7 +108,7 @@ export default function Dashboard({ linea, onMonthClick }: { linea: LineaNegocio
 
       <div className="grid mt-6" style={{ gridTemplateColumns: '2fr 1fr', gap: 16 }}>
         <BarLineChart
-          title="Presupuesto vs Costos por Mes"
+          title={conAnio('Presupuesto vs Costos por Mes')}
           items={stats.ventasPorMes.map(m => ({
             label: capitalize(m.mes).slice(0, 3),
             bars: [
@@ -120,14 +126,14 @@ export default function Dashboard({ linea, onMonthClick }: { linea: LineaNegocio
           formatLineValue={v => `${v.toFixed(1)}%`}
         />
         <PieChart
-          title="Clientes sin Facturar"
+          title={conAnio('Clientes sin Facturar')}
           items={stats.clientesSinFacturar.map(c => ({ label: c.cliente, value: c.monto, displayValue: formatCLP(c.monto) }))}
         />
       </div>
 
       <div className="grid mt-6" style={{ gridTemplateColumns: '1fr 2fr', gap: 16 }}>
         <PieChart
-          title="Ventas por Tipo de Ingreso"
+          title={conAnio('Ventas por Tipo de Ingreso')}
           items={[
             { label: 'Fee', value: tipoIngreso.fee.monto, displayValue: formatCLP(tipoIngreso.fee.monto) },
             { label: 'Variable', value: tipoIngreso.variable.monto, displayValue: formatCLP(tipoIngreso.variable.monto) }
@@ -135,7 +141,7 @@ export default function Dashboard({ linea, onMonthClick }: { linea: LineaNegocio
           colors={[FEE_VARIABLE_COLORS.fee, FEE_VARIABLE_COLORS.variable]}
         />
         <LinesChart
-          title="Utilidad Acumulada por Tipo de Ingreso"
+          title={conAnio('Utilidad Acumulada por Tipo de Ingreso')}
           items={utilidadAcumuladaPorMes}
           series={[
             { key: 'fee', label: 'Fee', color: FEE_VARIABLE_COLORS.fee },
