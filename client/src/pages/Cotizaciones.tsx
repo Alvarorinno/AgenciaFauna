@@ -26,8 +26,12 @@ export default function Cotizaciones({ linea }: { linea: LineaNegocio }) {
   const { user } = useAuth();
   const [rows, setRows] = useState<Cotizacion[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filters, setFilters] = useState({ mes: 'todos', cliente: 'todos', estado: 'todos', tipoIngreso: 'todos', search: '' });
+  const [filters, setFilters] = useState({ mes: 'todos', cliente: 'todos', tipoIngreso: 'todos', search: '' });
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
+  // 'pendientes' es el pipeline normal; 'rechazadas' es una sección aparte con
+  // exactamente la misma tabla/estructura, para tener las rechazadas "guardadas"
+  // en un solo lugar en vez de mezcladas con las que siguen en revisión.
+  const [view, setView] = useState<'pendientes' | 'rechazadas'>('pendientes');
 
   function toggleExpanded(id: number) {
     setExpanded(prev => {
@@ -52,7 +56,15 @@ export default function Cotizaciones({ linea }: { linea: LineaNegocio }) {
       .catch(() => setLoading(false));
   }, [linea]);
 
-  const clientes = useMemo(() => Array.from(new Set(rows.map(r => r.cliente).filter(Boolean))).sort(), [rows]);
+  // Split del pipeline: la vista "pendientes" (normal) y la vista "rechazadas"
+  // (sección aparte, misma estructura) nunca se mezclan entre sí.
+  const baseRows = useMemo(
+    () => rows.filter(r => r.estado_cotizacion === (view === 'rechazadas' ? 'rechazado' : 'pendiente')),
+    [rows, view]
+  );
+  const rechazadasCount = useMemo(() => rows.filter(r => r.estado_cotizacion === 'rechazado').length, [rows]);
+
+  const clientes = useMemo(() => Array.from(new Set(baseRows.map(r => r.cliente).filter(Boolean))).sort(), [baseRows]);
 
   // Texto libre buscado contra los campos identificatorios de la cotización
   // (número, mes, cliente, proyecto, descripción y estado).
@@ -71,10 +83,9 @@ export default function Cotizaciones({ linea }: { linea: LineaNegocio }) {
     return haystack.includes(searchTerm);
   };
 
-  const filteredRows = rows.filter(r =>
+  const filteredRows = baseRows.filter(r =>
     (filters.mes === 'todos' || r.mes === filters.mes) &&
     (filters.cliente === 'todos' || r.cliente === filters.cliente) &&
-    (filters.estado === 'todos' || r.estado_cotizacion === filters.estado) &&
     (filters.tipoIngreso === 'todos' || r.tipo_ingreso === filters.tipoIngreso) &&
     matchesSearch(r)
   );
@@ -145,10 +156,13 @@ export default function Cotizaciones({ linea }: { linea: LineaNegocio }) {
 
   return (
     <div>
-      <h1 className="title-serif font-semibold" style={{ fontSize: 24, color: '#12192b' }}>Cotizaciones — {LINEA_LABELS[linea]}</h1>
+      <h1 className="title-serif font-semibold" style={{ fontSize: 24, color: '#12192b' }}>
+        {view === 'rechazadas' ? 'Cotizaciones Rechazadas' : 'Cotizaciones'} — {LINEA_LABELS[linea]}
+      </h1>
       <p className="mb-5" style={{ fontSize: 13.5, color: '#5b5f6b' }}>
-        Pipeline de cotizaciones en revisión. Al aprobar una cotización, se mueve directamente a Eventos / Proyectos y sale de esta lista.
-        Las rechazadas quedan aquí y pueden reactivarse en cualquier momento.
+        {view === 'rechazadas'
+          ? 'Cotizaciones rechazadas, guardadas aquí aparte del pipeline. Puedes reactivarlas en cualquier momento para que vuelvan a Pendientes.'
+          : 'Pipeline de cotizaciones en revisión. Al aprobar una cotización, se mueve directamente a Eventos / Proyectos y sale de esta lista. Las rechazadas se guardan en la sección "Ver Rechazadas".'}
       </p>
 
       {/* Filters */}
@@ -162,20 +176,37 @@ export default function Cotizaciones({ linea }: { linea: LineaNegocio }) {
           options={['todos', ...MESES]} display={v => v === 'todos' ? 'Todos' : capitalize(v)} />
         <FilterSelect label="Cliente" value={filters.cliente} onChange={v => setFilters(f => ({ ...f, cliente: v }))}
           options={['todos', ...clientes]} display={v => v === 'todos' ? 'Todos' : v} />
-        <FilterSelect label="Estado" value={filters.estado} onChange={v => setFilters(f => ({ ...f, estado: v }))}
-          options={['todos', 'pendiente', 'rechazado']} display={v => v === 'todos' ? 'Todos' : ESTADO_COT_BADGE[v as EstadoCotizacion].label} />
         <FilterSelect label="Fee / Variable" value={filters.tipoIngreso} onChange={v => setFilters(f => ({ ...f, tipoIngreso: v }))}
           options={['todos', 'fee', 'variable']} display={v => v === 'todos' ? 'Todos' : TIPO_INGRESO_BADGE[v as TipoIngreso].label} />
 
-        {canEdit && (
-          <button
-            onClick={handleAdd}
-            className="ml-auto font-bold"
-            style={{ background: '#c8a24a', color: '#12192b', padding: '9px 16px', borderRadius: 8, fontSize: 13.5 }}
-          >
-            + Agregar cotización
-          </button>
-        )}
+        <div className="ml-auto flex items-center" style={{ gap: 10 }}>
+          {view === 'pendientes' ? (
+            <button
+              onClick={() => setView('rechazadas')}
+              className="font-bold"
+              style={{ background: '#f6e4e6', color: '#6d2632', padding: '9px 16px', borderRadius: 8, fontSize: 13.5 }}
+            >
+              Ver Rechazadas{rechazadasCount > 0 ? ` (${rechazadasCount})` : ''}
+            </button>
+          ) : (
+            <button
+              onClick={() => setView('pendientes')}
+              className="font-bold"
+              style={{ background: '#faf0d7', color: '#8a6a1f', padding: '9px 16px', borderRadius: 8, fontSize: 13.5 }}
+            >
+              ← Volver a Pendientes
+            </button>
+          )}
+          {canEdit && view === 'pendientes' && (
+            <button
+              onClick={handleAdd}
+              className="font-bold"
+              style={{ background: '#c8a24a', color: '#12192b', padding: '9px 16px', borderRadius: 8, fontSize: 13.5 }}
+            >
+              + Agregar cotización
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Table */}
@@ -203,7 +234,9 @@ export default function Cotizaciones({ linea }: { linea: LineaNegocio }) {
           <tbody>
             {loading && <tr><td colSpan={13} style={{ padding: 24, textAlign: 'center', color: '#9aa0ad' }}>Cargando…</td></tr>}
             {!loading && filteredRows.length === 0 && (
-              <tr><td colSpan={13} style={{ padding: 24, textAlign: 'center', color: '#9aa0ad' }}>No hay cotizaciones con estos filtros.</td></tr>
+              <tr><td colSpan={13} style={{ padding: 24, textAlign: 'center', color: '#9aa0ad' }}>
+                {view === 'rechazadas' ? 'No hay cotizaciones rechazadas con estos filtros.' : 'No hay cotizaciones con estos filtros.'}
+              </td></tr>
             )}
             {filteredRows.map(row => {
               const badge = ESTADO_COT_BADGE[row.estado_cotizacion ?? 'pendiente'];
