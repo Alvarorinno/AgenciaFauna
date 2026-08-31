@@ -3,8 +3,9 @@ import { useAuth } from '../context/AuthContext';
 import { getCotizaciones, createCotizacion, updateCotizacion, deleteCotizacion } from '../api';
 import type { Cotizacion, EstadoCotizacion, LineaNegocio, TipoIngreso } from '../types';
 import { MESES } from '../types';
-import { formatCLP, capitalize, formatNCot } from '../utils';
+import { formatCLP, capitalize, formatNCot, searchNormalize } from '../utils';
 import CotizacionDetalle from '../components/CotizacionDetalle';
+import SearchInput from '../components/SearchInput';
 
 const ENCARGADO_FIELDS = ['n_cot', 'mes', 'cliente', 'proyecto', 'descripcion', 'costo_cliente', 'costo_real', 'tipo_ingreso'] as const;
 
@@ -25,7 +26,7 @@ export default function Cotizaciones({ linea }: { linea: LineaNegocio }) {
   const { user } = useAuth();
   const [rows, setRows] = useState<Cotizacion[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filters, setFilters] = useState({ mes: 'todos', cliente: 'todos', estado: 'todos', tipoIngreso: 'todos' });
+  const [filters, setFilters] = useState({ mes: 'todos', cliente: 'todos', estado: 'todos', tipoIngreso: 'todos', search: '' });
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
 
   function toggleExpanded(id: number) {
@@ -53,11 +54,29 @@ export default function Cotizaciones({ linea }: { linea: LineaNegocio }) {
 
   const clientes = useMemo(() => Array.from(new Set(rows.map(r => r.cliente).filter(Boolean))).sort(), [rows]);
 
+  // Texto libre buscado contra los campos identificatorios de la cotización
+  // (número, mes, cliente, proyecto, descripción y estado).
+  const searchTerm = searchNormalize(filters.search.trim());
+  const matchesSearch = (r: Cotizacion) => {
+    if (!searchTerm) return true;
+    const haystack = searchNormalize([
+      formatNCot(r.n_cot, r.linea_negocio),
+      r.mes,
+      r.cliente,
+      r.proyecto,
+      r.descripcion,
+      TIPO_INGRESO_BADGE[r.tipo_ingreso ?? 'fee'].label,
+      ESTADO_COT_BADGE[r.estado_cotizacion ?? 'pendiente'].label
+    ].join(' '));
+    return haystack.includes(searchTerm);
+  };
+
   const filteredRows = rows.filter(r =>
     (filters.mes === 'todos' || r.mes === filters.mes) &&
     (filters.cliente === 'todos' || r.cliente === filters.cliente) &&
     (filters.estado === 'todos' || r.estado_cotizacion === filters.estado) &&
-    (filters.tipoIngreso === 'todos' || r.tipo_ingreso === filters.tipoIngreso)
+    (filters.tipoIngreso === 'todos' || r.tipo_ingreso === filters.tipoIngreso) &&
+    matchesSearch(r)
   );
 
   function patchRow(id: number, patch: Partial<Cotizacion>) {
@@ -134,6 +153,11 @@ export default function Cotizaciones({ linea }: { linea: LineaNegocio }) {
 
       {/* Filters */}
       <div className="flex flex-wrap items-end mb-5" style={{ gap: 14 }}>
+        <SearchInput
+          value={filters.search}
+          onChange={v => setFilters(f => ({ ...f, search: v }))}
+          placeholder="N° cot., cliente, proyecto, descripción…"
+        />
         <FilterSelect label="Mes" value={filters.mes} onChange={v => setFilters(f => ({ ...f, mes: v }))}
           options={['todos', ...MESES]} display={v => v === 'todos' ? 'Todos' : capitalize(v)} />
         <FilterSelect label="Cliente" value={filters.cliente} onChange={v => setFilters(f => ({ ...f, cliente: v }))}

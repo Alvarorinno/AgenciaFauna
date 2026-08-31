@@ -14,6 +14,15 @@ export function formatCLPCompact(n: number): string {
   return '$' + (v / 1_000_000).toLocaleString('es-CL', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' MM';
 }
 
+// Normaliza texto para búsquedas "contains" insensibles a mayúsculas y tildes
+// (ej. buscar "fauna" debe encontrar "FAUNA RD", y "gomez" debe encontrar "Gómez").
+export function searchNormalize(s: unknown): string {
+  return String(s ?? '')
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase();
+}
+
 export function capitalize(s: string): string {
   if (!s) return s;
   return s.charAt(0).toUpperCase() + s.slice(1);

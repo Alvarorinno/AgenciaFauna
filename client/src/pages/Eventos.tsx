@@ -3,8 +3,9 @@ import { useAuth } from '../context/AuthContext';
 import { getCotizaciones, createCotizacion, updateCotizacion, deleteCotizacion } from '../api';
 import type { Cotizacion, EstadoPago, LineaNegocio, TipoIngreso } from '../types';
 import { MESES } from '../types';
-import { formatCLP, capitalize, formatNCot } from '../utils';
+import { formatCLP, capitalize, formatNCot, searchNormalize } from '../utils';
 import CotizacionDetalle from '../components/CotizacionDetalle';
+import SearchInput from '../components/SearchInput';
 
 const ENCARGADO_FIELDS = ['n_cot', 'mes', 'cliente', 'proyecto', 'descripcion', 'costo_cliente', 'costo_real', 'tipo_ingreso'] as const;
 const FINANCE_FIELDS = ['factura', 'fecha_factura', 'mes_factura', 'estado_pago'] as const;
@@ -30,7 +31,7 @@ export default function Eventos({ linea, presetMes, onPresetConsumed }: {
   const { user } = useAuth();
   const [rows, setRows] = useState<Cotizacion[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filters, setFilters] = useState({ mes: 'todos', cliente: 'todos', estadoPago: 'todos', tipoIngreso: 'todos', facturado: 'todos' });
+  const [filters, setFilters] = useState({ mes: 'todos', cliente: 'todos', estadoPago: 'todos', tipoIngreso: 'todos', facturado: 'todos', search: '' });
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
 
   // Al llegar desde el gráfico "Ventas por Mes" del dashboard, se preselecciona
@@ -75,12 +76,32 @@ export default function Eventos({ linea, presetMes, onPresetConsumed }: {
   // el campo no está vacío, independiente del estado_pago.
   const tieneFactura = (r: Cotizacion) => !!r.factura && r.factura.trim() !== '';
 
+  // Texto libre buscado contra los campos identificatorios del evento/proyecto
+  // (número, mes, cliente, proyecto, descripción, factura y estado de pago).
+  const searchTerm = searchNormalize(filters.search.trim());
+  const matchesSearch = (r: Cotizacion) => {
+    if (!searchTerm) return true;
+    const haystack = searchNormalize([
+      formatNCot(r.n_cot, r.linea_negocio),
+      r.mes,
+      r.cliente,
+      r.proyecto,
+      r.descripcion,
+      TIPO_INGRESO_BADGE[r.tipo_ingreso ?? 'fee'].label,
+      r.factura,
+      r.mes_factura,
+      ESTADO_BADGE[r.estado_pago ?? 'na'].label
+    ].join(' '));
+    return haystack.includes(searchTerm);
+  };
+
   const filteredRows = rows.filter(r =>
     (filters.mes === 'todos' || r.mes === filters.mes) &&
     (filters.cliente === 'todos' || r.cliente === filters.cliente) &&
     (filters.estadoPago === 'todos' || r.estado_pago === filters.estadoPago) &&
     (filters.tipoIngreso === 'todos' || r.tipo_ingreso === filters.tipoIngreso) &&
-    (filters.facturado === 'todos' || (filters.facturado === 'facturado' ? tieneFactura(r) : !tieneFactura(r)))
+    (filters.facturado === 'todos' || (filters.facturado === 'facturado' ? tieneFactura(r) : !tieneFactura(r))) &&
+    matchesSearch(r)
   );
 
   // Totales de la sección "Calculado" para las filas visibles (respeta los filtros activos).
@@ -140,6 +161,11 @@ export default function Eventos({ linea, presetMes, onPresetConsumed }: {
 
       {/* Filters */}
       <div className="flex flex-wrap items-end mb-5 shrink-0" style={{ gap: 14 }}>
+        <SearchInput
+          value={filters.search}
+          onChange={v => setFilters(f => ({ ...f, search: v }))}
+          placeholder="N° cot., cliente, proyecto, factura…"
+        />
         <FilterSelect label="Mes" value={filters.mes} onChange={v => setFilters(f => ({ ...f, mes: v }))}
           options={['todos', ...MESES]} display={v => v === 'todos' ? 'Todos' : capitalize(v)} />
         <FilterSelect label="Cliente" value={filters.cliente} onChange={v => setFilters(f => ({ ...f, cliente: v }))}
