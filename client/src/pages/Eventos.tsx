@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { getCotizaciones, createCotizacion, updateCotizacion, deleteCotizacion } from '../api';
+import { getCotizaciones, updateCotizacion, deleteCotizacion } from '../api';
 import type { Cotizacion, EstadoPago, LineaNegocio, TipoIngreso } from '../types';
 import { MESES } from '../types';
 import { formatCLP, capitalize, formatNCot, searchNormalize } from '../utils';
@@ -138,12 +138,6 @@ export default function Eventos({ linea, presetMes, onPresetConsumed }: {
     setRows(prev => prev.filter(r => r.id !== id));
   }
 
-  async function handleAdd() {
-    const created = await createCotizacion({ mes: 'enero', estado_cotizacion: 'aprobado' });
-    // Al principio (no al final) para que quede visible sin tener que scrollear.
-    setRows(prev => [{ ...created, editing: true }, ...prev]);
-  }
-
   const dimStyle = (allowed: boolean): React.CSSProperties =>
     allowed ? {} : { opacity: 0.4, pointerEvents: 'none' };
 
@@ -177,16 +171,6 @@ export default function Eventos({ linea, presetMes, onPresetConsumed }: {
           options={['todos', 'fee', 'variable']} display={v => v === 'todos' ? 'Todos' : TIPO_INGRESO_BADGE[v as TipoIngreso].label} />
         <FilterSelect label="Facturado" value={filters.facturado} onChange={v => setFilters(f => ({ ...f, facturado: v }))}
           options={['todos', 'facturado', 'no_facturado']} display={v => v === 'todos' ? 'Todos' : v === 'facturado' ? 'Facturado' : 'No facturado'} />
-
-        {canEditEncargado && (
-          <button
-            onClick={handleAdd}
-            className="ml-auto font-bold"
-            style={{ background: '#c8a24a', color: '#12192b', padding: '9px 16px', borderRadius: 8, fontSize: 13.5 }}
-          >
-            + Agregar cotización
-          </button>
-        )}
       </div>
 
       {/* Table */}
