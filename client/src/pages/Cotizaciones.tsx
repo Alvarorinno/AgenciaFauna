@@ -118,7 +118,8 @@ export default function Cotizaciones({ linea }: { linea: LineaNegocio }) {
 
   async function handleAdd() {
     const created = await createCotizacion({ mes: 'enero', estado_cotizacion: 'pendiente' });
-    setRows(prev => [...prev, { ...created, editing: true }]);
+    // Al principio (no al final) para que quede visible sin tener que scrollear.
+    setRows(prev => [{ ...created, editing: true }, ...prev]);
   }
 
   async function handleAprobar(id: number) {

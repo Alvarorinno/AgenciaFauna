@@ -140,7 +140,8 @@ export default function Eventos({ linea, presetMes, onPresetConsumed }: {
 
   async function handleAdd() {
     const created = await createCotizacion({ mes: 'enero', estado_cotizacion: 'aprobado' });
-    setRows(prev => [...prev, { ...created, editing: true }]);
+    // Al principio (no al final) para que quede visible sin tener que scrollear.
+    setRows(prev => [{ ...created, editing: true }, ...prev]);
   }
 
   const dimStyle = (allowed: boolean): React.CSSProperties =>
