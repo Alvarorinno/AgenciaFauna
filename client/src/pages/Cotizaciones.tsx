@@ -22,7 +22,13 @@ const TIPO_INGRESO_BADGE: Record<TipoIngreso, { label: string; bg: string; text:
   variable: { label: 'Variable', bg: '#f4e6c1', text: '#8a6a1f' }
 };
 
-export default function Cotizaciones({ linea }: { linea: LineaNegocio }) {
+export default function Cotizaciones({ linea, focusCotizacion, onFocusConsumed }: {
+  linea: LineaNegocio;
+  // Al llegar desde "Duplicar" en Eventos (la copia siempre entra 'pendiente'
+  // acá), qué fila mostrar directo: expandida, en la vista Pendientes y con scroll.
+  focusCotizacion?: { id: number; token: number } | null;
+  onFocusConsumed?: () => void;
+}) {
   const { user } = useAuth();
   const [rows, setRows] = useState<Cotizacion[]>([]);
   const [loading, setLoading] = useState(true);
@@ -55,6 +61,29 @@ export default function Cotizaciones({ linea }: { linea: LineaNegocio }) {
       })
       .catch(() => setLoading(false));
   }, [linea]);
+
+  // Deja una fila como la única expandida, en la vista Pendientes, con scroll
+  // hasta ella — usado tanto al duplicar en esta misma página como al llegar
+  // ya duplicada desde Eventos (ver useEffect de focusCotizacion más abajo).
+  function focusRow(id: number) {
+    setView('pendientes');
+    setExpanded(new Set([id]));
+    requestAnimationFrame(() => {
+      document.getElementById(`cot-row-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+  }
+
+  // Al llegar desde "Duplicar" en Eventos: la copia ya está guardada (siempre
+  // 'pendiente') y este componente recién se montó y la trajo en su fetch
+  // inicial; en cuanto termine de cargar, se enfoca y se avisa al padre que
+  // ya se consumió (mismo patrón que presetMes en Eventos.tsx).
+  useEffect(() => {
+    if (!focusCotizacion || loading) return;
+    if (!rows.some(r => r.id === focusCotizacion.id)) return;
+    focusRow(focusCotizacion.id);
+    onFocusConsumed?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusCotizacion?.token, loading]);
 
   // Split del pipeline: la vista "pendientes" (normal) y la vista "rechazadas"
   // (sección aparte, misma estructura) nunca se mezclan entre sí.
@@ -122,15 +151,13 @@ export default function Cotizaciones({ linea }: { linea: LineaNegocio }) {
     setRows(prev => [{ ...created, editing: true }, ...prev]);
   }
 
-  // Al duplicar una cotización desde su detalle, la copia entra arriba de la
-  // lista (igual que handleAdd), queda como única fila expandida y se le hace
-  // scroll para que la persona "llegue" directo a ella sin buscarla.
+  // Al duplicar una cotización desde su detalle (misma página), la copia
+  // entra arriba de la lista (igual que handleAdd) y queda enfocada: única
+  // fila expandida, vista Pendientes y scroll hasta ella. Si la original
+  // estaba en "Rechazadas", la copia (siempre 'pendiente') cambia de vista.
   function handleDuplicated(nueva: Cotizacion) {
     setRows(prev => [nueva, ...prev]);
-    setExpanded(new Set([nueva.id]));
-    requestAnimationFrame(() => {
-      document.getElementById(`cot-row-${nueva.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    });
+    focusRow(nueva.id);
   }
 
   async function handleAprobar(id: number) {

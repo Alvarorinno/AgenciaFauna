@@ -23,10 +23,14 @@ const TIPO_INGRESO_BADGE: Record<TipoIngreso, { label: string; bg: string; text:
 
 const LINEA_LABELS: Record<LineaNegocio, string> = { fauna_rd: 'Fauna RD', agencia: 'Agencia' };
 
-export default function Eventos({ linea, presetMes, onPresetConsumed }: {
+export default function Eventos({ linea, presetMes, onPresetConsumed, onDuplicatedCotizacion }: {
   linea: LineaNegocio;
   presetMes?: { mes: string; token: number } | null;
   onPresetConsumed?: () => void;
+  // La copia de un evento/proyecto duplicado siempre queda 'pendiente' (no
+  // otro evento aprobado directo), así que no se agrega a esta lista: se avisa
+  // al padre (App) para que navegue a Cotizaciones y la muestre allá.
+  onDuplicatedCotizacion?: (id: number) => void;
 }) {
   const { user } = useAuth();
   const [rows, setRows] = useState<Cotizacion[]>([]);
@@ -138,15 +142,11 @@ export default function Eventos({ linea, presetMes, onPresetConsumed }: {
     setRows(prev => prev.filter(r => r.id !== id));
   }
 
-  // Al duplicar un proyecto desde su detalle, la copia entra arriba de la
-  // lista, queda como única fila expandida y se le hace scroll para que la
-  // persona "llegue" directo a ella sin tener que buscarla.
+  // Al duplicar un proyecto desde su detalle, la copia sale como una nueva
+  // cotización 'pendiente' (no otro evento aprobado directo) -> no pertenece
+  // a esta lista de proyectos; se navega a Cotizaciones para verla allá.
   function handleDuplicated(nueva: Cotizacion) {
-    setRows(prev => [nueva, ...prev]);
-    setExpanded(new Set([nueva.id]));
-    requestAnimationFrame(() => {
-      document.getElementById(`cot-row-${nueva.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    });
+    onDuplicatedCotizacion?.(nueva.id);
   }
 
   const dimStyle = (allowed: boolean): React.CSSProperties =>
@@ -218,7 +218,7 @@ export default function Eventos({ linea, presetMes, onPresetConsumed }: {
               const isExpanded = expanded.has(row.id);
               return (
                 <Fragment key={row.id}>
-                <tr id={`cot-row-${row.id}`} style={{ borderTop: '1px solid #efe9df' }}>
+                <tr style={{ borderTop: '1px solid #efe9df' }}>
                   <td style={cellStyle}>
                     <button onClick={() => toggleExpanded(row.id)} title="Ver detalle de proveedores"
                       style={{ width: 22, height: 22, color: '#5b5f6b', fontSize: 11 }}>

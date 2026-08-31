@@ -93,9 +93,9 @@ router.post('/', async (req, res) => {
 // Duplica una cotización (o proyecto ya aprobado) junto con TODO su detalle
 // de proveedores (grupos + ítems, con las mismas cantidades y precios), para
 // reutilizarla como base de una nueva sin tener que volver a tipear todo.
-// Queda en el mismo estado_cotizacion que el original (si se duplica un
-// proyecto aprobado, la copia aparece directo en Eventos/Proyectos; si se
-// duplica una cotización pendiente, la copia aparece en el pipeline normal).
+// La copia SIEMPRE queda 'pendiente', sin importar el estado del original:
+// duplicar un proyecto/evento ya aprobado no debe generar otro evento directo,
+// tiene que pasar de nuevo por el pipeline de Cotizaciones para su revisión.
 // No se copian factura_proveedor/abonos ni datos de facturación del cliente:
 // son propios de la ejecución de ESA cotización, no del "molde" reutilizado.
 router.post('/:id/duplicate', async (req, res) => {
@@ -122,7 +122,7 @@ router.post('/:id/duplicate', async (req, res) => {
     )
     VALUES (
       ${nCot}, ${original.mes}, ${original.cliente}, ${original.proyecto}, ${original.descripcion},
-      0, 0, ${original.comision_pct || 0}, 0, 'na', ${original.estado_cotizacion}, ${original.linea_negocio}, ${original.tipo_ingreso}
+      0, 0, ${original.comision_pct || 0}, 0, 'na', 'pendiente', ${original.linea_negocio}, ${original.tipo_ingreso}
     )
     RETURNING *
   `;

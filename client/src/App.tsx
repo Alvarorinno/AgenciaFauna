@@ -17,12 +17,21 @@ function AppContent() {
   const [page, setPage] = useState<Page>('dashboard');
   const [linea, setLinea] = useState<LineaNegocio>('fauna_rd');
   const [eventosMesPreset, setEventosMesPreset] = useState<{ mes: string; token: number } | null>(null);
+  const [cotizacionFocus, setCotizacionFocus] = useState<{ id: number; token: number } | null>(null);
 
   // Click en un mes del gráfico "Ventas por Mes" del dashboard -> ir a Eventos
   // con ese mes ya filtrado.
   function handleMonthClick(mes: string) {
     setEventosMesPreset({ mes, token: Date.now() });
     setPage('eventos');
+  }
+
+  // Al duplicar un evento/proyecto desde Eventos, la copia siempre queda
+  // 'pendiente' (vuelve a pasar por el pipeline de Cotizaciones, no se genera
+  // otro evento directo) -> navegamos a Cotizaciones y le avisamos cuál mostrar.
+  function handleDuplicatedCotizacion(id: number) {
+    setCotizacionFocus({ id, token: Date.now() });
+    setPage('cotizaciones');
   }
 
   // El estado inicial de useState solo corre una vez (antes de que exista `user`,
@@ -40,9 +49,16 @@ function AppContent() {
     <Layout page={currentPage} setPage={setPage} linea={linea} setLinea={setLinea}>
       {currentPage === 'general' && <DashboardGeneral />}
       {currentPage === 'dashboard' && <Dashboard linea={linea} onMonthClick={handleMonthClick} />}
-      {currentPage === 'cotizaciones' && <Cotizaciones linea={linea} />}
+      {currentPage === 'cotizaciones' && (
+        <Cotizaciones linea={linea} focusCotizacion={cotizacionFocus} onFocusConsumed={() => setCotizacionFocus(null)} />
+      )}
       {currentPage === 'eventos' && (
-        <Eventos linea={linea} presetMes={eventosMesPreset} onPresetConsumed={() => setEventosMesPreset(null)} />
+        <Eventos
+          linea={linea}
+          presetMes={eventosMesPreset}
+          onPresetConsumed={() => setEventosMesPreset(null)}
+          onDuplicatedCotizacion={handleDuplicatedCotizacion}
+        />
       )}
       {currentPage === 'gestion_proveedores' && <GestionProveedores linea={linea} />}
       {currentPage === 'proveedores' && <Proveedores />}
