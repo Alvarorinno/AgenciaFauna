@@ -82,11 +82,26 @@ router.get('/', async (req, res) => {
     const tipoIngreso = r.tipo_ingreso === 'variable' ? 'variable' : 'fee';
 
     if (r.mes) {
-      if (!porMes[r.mes]) porMes[r.mes] = { mes: r.mes, ventas: 0, ventasFee: 0, ventasVariable: 0, costoReal: 0 };
+      if (!porMes[r.mes]) {
+        porMes[r.mes] = {
+          mes: r.mes, ventas: 0, ventasFee: 0, ventasVariable: 0, costoReal: 0,
+          costoRealFee: 0, costoRealVariable: 0
+        };
+      }
       porMes[r.mes].ventas += costoCliente;
       porMes[r.mes].costoReal += costoReal;
-      if (tipoIngreso === 'variable') porMes[r.mes].ventasVariable += costoCliente;
-      else porMes[r.mes].ventasFee += costoCliente;
+      // Se guarda costoReal también desglosado por Fee/Variable (además del ya
+      // existente ventasFee/ventasVariable) para poder derivar la utilidad
+      // (ventas - costoReal) de cada tipo de ingreso mes a mes en el cliente,
+      // sin tener que volver a pegarle al backend — ver gráfico "Utilidad
+      // Acumulada por Tipo de Ingreso" del Dashboard.
+      if (tipoIngreso === 'variable') {
+        porMes[r.mes].ventasVariable += costoCliente;
+        porMes[r.mes].costoRealVariable += costoReal;
+      } else {
+        porMes[r.mes].ventasFee += costoCliente;
+        porMes[r.mes].costoRealFee += costoReal;
+      }
     }
 
     if (r.cliente) {
@@ -109,7 +124,9 @@ router.get('/', async (req, res) => {
 
   // Se listan los 12 meses siempre (no solo los que tienen ventas), para que el
   // gráfico de Ventas por Mes muestre el año completo con los meses sin datos en 0.
-  const ventasPorMes = MESES.map(m => porMes[m] ?? { mes: m, ventas: 0, ventasFee: 0, ventasVariable: 0, costoReal: 0 });
+  const ventasPorMes = MESES.map(m => porMes[m] ?? {
+    mes: m, ventas: 0, ventasFee: 0, ventasVariable: 0, costoReal: 0, costoRealFee: 0, costoRealVariable: 0
+  });
 
   const clientesArr = Object.values(porCliente);
   const ventasPorCliente = [...clientesArr].sort((a, b) => b.ventas - a.ventas).slice(0, 6);

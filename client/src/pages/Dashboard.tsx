@@ -6,6 +6,7 @@ import BarList from '../components/BarList';
 import ColumnChart from '../components/ColumnChart';
 import PieChart from '../components/PieChart';
 import BarLineChart from '../components/BarLineChart';
+import LinesChart from '../components/LinesChart';
 import { formatCLP, formatCLPCompact, capitalize, FEE_VARIABLE_COLORS } from '../utils';
 
 const LINEA_LABELS: Record<LineaNegocio, string> = { fauna_rd: 'Fauna RD', agencia: 'Agencia' };
@@ -23,6 +24,18 @@ export default function Dashboard({ linea, onMonthClick }: { linea: LineaNegocio
   }
 
   const estados = stats.facturacionPorEstado;
+  const tipoIngreso = stats.cotizacionesPorTipoIngreso;
+
+  // Utilidad (ventas - costoReal) acumulada mes a mes por tipo de ingreso, para
+  // el gráfico de líneas "Utilidad Acumulada por Tipo de Ingreso" — deja ver si
+  // el fee o el variable viene aportando más margen a lo largo del año.
+  let acumFee = 0;
+  let acumVariable = 0;
+  const utilidadAcumuladaPorMes = stats.ventasPorMes.map(m => {
+    acumFee += m.ventasFee - m.costoRealFee;
+    acumVariable += m.ventasVariable - m.costoRealVariable;
+    return { label: capitalize(m.mes).slice(0, 3), values: { fee: acumFee, variable: acumVariable } };
+  });
 
   return (
     <div>
@@ -109,6 +122,26 @@ export default function Dashboard({ linea, onMonthClick }: { linea: LineaNegocio
         <PieChart
           title="Clientes sin Facturar"
           items={stats.clientesSinFacturar.map(c => ({ label: c.cliente, value: c.monto, displayValue: formatCLP(c.monto) }))}
+        />
+      </div>
+
+      <div className="grid mt-6" style={{ gridTemplateColumns: '1fr 2fr', gap: 16 }}>
+        <PieChart
+          title="Ventas por Tipo de Ingreso"
+          items={[
+            { label: 'Fee', value: tipoIngreso.fee.monto, displayValue: formatCLP(tipoIngreso.fee.monto) },
+            { label: 'Variable', value: tipoIngreso.variable.monto, displayValue: formatCLP(tipoIngreso.variable.monto) }
+          ]}
+          colors={[FEE_VARIABLE_COLORS.fee, FEE_VARIABLE_COLORS.variable]}
+        />
+        <LinesChart
+          title="Utilidad Acumulada por Tipo de Ingreso"
+          items={utilidadAcumuladaPorMes}
+          series={[
+            { key: 'fee', label: 'Fee', color: FEE_VARIABLE_COLORS.fee },
+            { key: 'variable', label: 'Variable', color: FEE_VARIABLE_COLORS.variable }
+          ]}
+          formatValue={formatCLPCompact}
         />
       </div>
     </div>
