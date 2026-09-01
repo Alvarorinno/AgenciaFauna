@@ -204,6 +204,10 @@ export default function CotizacionDetalle({ cotizacion, canEdit, onCotizacionUpd
   }
 
   const inputStyle: React.CSSProperties = { width: '100%', padding: '4px 6px', border: '1px solid #dfd8c8', borderRadius: 5, fontSize: 12.5 };
+  // Descripción de ítem: a diferencia de los demás campos (montos, cantidad),
+  // acepta Enter para saltos de línea — se usan para separar la descripción en
+  // viñetas al generar el PDF (ver server/routes/detalle.js, bulletize()).
+  const textareaStyle: React.CSSProperties = { ...inputStyle, resize: 'vertical', fontFamily: 'inherit', lineHeight: 1.4 };
 
   return (
     <div style={{ padding: '14px 18px', background: '#fbfaf7' }}>
@@ -346,9 +350,9 @@ export default function CotizacionDetalle({ cotizacion, canEdit, onCotizacionUpd
                     const dblClickStyle: React.CSSProperties = canEdit && !isEditingItem ? { cursor: 'text' } : {};
                     return (
                     <tr key={it.id} style={{ borderTop: '1px solid #efe9df' }}>
-                      <td style={{ ...detCellStyle, ...dblClickStyle }} onDoubleClick={dblClick} title={dblClickTitle}>
+                      <td style={{ ...detCellStyle, ...dblClickStyle, whiteSpace: 'pre-line' }} onDoubleClick={dblClick} title={dblClickTitle}>
                         {isEditingItem ? (
-                          <input autoFocus style={inputStyle} value={draftItem.nombre ?? ''} placeholder={it.nombre} onChange={e => setDraftItem(d => ({ ...d, nombre: e.target.value }))} />
+                          <textarea autoFocus rows={3} style={textareaStyle} value={draftItem.nombre ?? ''} placeholder={it.nombre} onChange={e => setDraftItem(d => ({ ...d, nombre: e.target.value }))} />
                         ) : it.nombre}
                       </td>
                       <td style={{ ...detCellStyle, ...dblClickStyle }} onDoubleClick={dblClick} title={dblClickTitle}>

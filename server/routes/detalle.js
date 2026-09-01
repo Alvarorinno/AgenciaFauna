@@ -292,7 +292,7 @@ router.get('/cotizaciones/:id/pdf-cliente', async (req, res) => {
 
     let gTotal = 0;
     for (const it of gItems) {
-      const vals = [it.nombre || '', String(it.cantidad), fmtCLP(it.unitario_cliente), fmtCLP(it.subtotal_cliente)];
+      const vals = [bulletize(it.nombre), String(it.cantidad), fmtCLP(it.unitario_cliente), fmtCLP(it.subtotal_cliente)];
       drawTableRow(doc, vals, [260, 60, 95, 100]);
       gTotal += it.subtotal_cliente;
     }
@@ -359,7 +359,7 @@ router.get('/grupos/:id/pdf-oc', async (req, res) => {
 
   let total = 0;
   for (const it of items) {
-    const vals = [it.nombre || '', String(it.cantidad), fmtCLP(it.unitario_costo), fmtCLP(it.subtotal_costo)];
+    const vals = [bulletize(it.nombre), String(it.cantidad), fmtCLP(it.unitario_costo), fmtCLP(it.subtotal_costo)];
     drawTableRow(doc, vals, [260, 60, 95, 100]);
     total += it.subtotal_costo;
   }
@@ -489,6 +489,17 @@ function tableHeader(doc, labels, widths) {
   doc.moveDown(0.7);
   doc.moveTo(40, doc.y).lineTo(555, doc.y).strokeColor('#efe9df').lineWidth(0.5).stroke();
   doc.moveDown(0.4);
+}
+
+// Si la descripción de un ítem tiene varias líneas (el encargado presionó
+// Enter al escribirla), se muestra en el PDF como lista con viñetas — mucho
+// más legible que el párrafo corrido de antes. Una descripción de una sola
+// línea queda exactamente igual que antes (sin viñeta), para no cambiar el
+// aspecto de todo el historial de ítems ya cargados sin saltos de línea.
+function bulletize(text) {
+  const lines = String(text || '').split('\n').map(l => l.trim()).filter(Boolean);
+  if (lines.length <= 1) return text || '';
+  return lines.map(l => `•  ${l}`).join('\n');
 }
 
 // Dibuja una fila de ítem (usada por la cotización cliente y por la OC) y
