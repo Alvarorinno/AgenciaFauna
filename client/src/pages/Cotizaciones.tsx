@@ -330,8 +330,8 @@ export default function Cotizaciones({ linea, focusCotizacion, onFocusConsumed }
                       </span>
                     )}
                   </td>
-                  <td style={{ ...cellStyle, ...dimStyle(canEdit) }} title={row.tiene_detalle ? 'Se calcula automáticamente desde el detalle de proveedores' : ''}>
-                    {row.editing && canEdit && !row.tiene_detalle ? (
+                  <td style={{ ...cellStyle, ...dimStyle(canEdit) }} title={row.tiene_detalle && Number(row.costo_cliente) !== 0 ? 'Se calcula automáticamente desde el detalle de proveedores' : ''}>
+                    {row.editing && canEdit && (!row.tiene_detalle || Number(row.costo_cliente) === 0) ? (
                       <input type="number" style={inputStyle} value={row.costo_cliente} onChange={e => patchRow(row.id, { costo_cliente: Number(e.target.value) })} />
                     ) : formatCLP(row.costo_cliente)}
                   </td>

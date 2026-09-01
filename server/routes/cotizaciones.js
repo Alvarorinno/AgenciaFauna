@@ -170,8 +170,18 @@ router.put('/:id', async (req, res) => {
   // costo_cliente y costo_real se calculan automáticamente desde los ítems
   // (ver recomputeTotales en lib/calc.js, disparado desde routes/detalle.js)
   // y dejan de ser editables a mano, incluso si vienen en el payload.
+  //
+  // Excepción: si costo_cliente da 0 (hay costo de proveedor cargado pero aún
+  // no se definió el valor de venta ítem por ítem), se deja editable a mano
+  // para que el ejecutivo ponga un valor referencial mientras tanto — SOLO
+  // mientras siga en 0 (ver recomputeTotales, que no pisa un valor puesto a
+  // mano hasta que haya un precio real en algún ítem). costo_real nunca se
+  // habilita por esta vía: siempre refleja el costo real ya conocido.
   const [{ n: gruposCount }] = await sql`SELECT COUNT(*)::int as n FROM cotizacion_grupos WHERE cotizacion_id = ${id}`;
-  const lockedFields = gruposCount > 0 ? ['costo_cliente', 'costo_real'] : [];
+  const costoClienteActual = Number(existing[0].costo_cliente) || 0;
+  const lockedFields = gruposCount > 0
+    ? (costoClienteActual === 0 ? ['costo_real'] : ['costo_cliente', 'costo_real'])
+    : [];
 
   const updates = {};
   for (const field of allowedFields) {

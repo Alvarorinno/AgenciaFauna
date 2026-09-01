@@ -110,9 +110,22 @@ export async function recomputeTotales(cotizacionId) {
   const comisionMonto = calcComisionMonto(costoClienteBase, comisionPctRaw, lineaNegocio);
   const costoCliente = costoClienteBase + comisionMonto;
 
-  await sql`
-    UPDATE cotizaciones
-    SET costo_cliente = ${costoCliente}, costo_real = ${costoReal}, comision_monto = ${comisionMonto}, updated_at = now()
-    WHERE id = ${cotizacionId}
-  `;
+  // Si los ítems todavía no tienen precio de venta cargado (costoClienteBase = 0,
+  // ej. ya se cotizó el costo con el proveedor pero aún no el valor al cliente),
+  // no se pisa costo_cliente: puede haber un valor referencial puesto a mano por
+  // el ejecutivo (ver PUT /cotizaciones/:id, editable solo mientras esté en 0) —
+  // se respeta hasta que haya un precio real en algún ítem que lo reemplace.
+  if (costoClienteBase > 0) {
+    await sql`
+      UPDATE cotizaciones
+      SET costo_cliente = ${costoCliente}, costo_real = ${costoReal}, comision_monto = ${comisionMonto}, updated_at = now()
+      WHERE id = ${cotizacionId}
+    `;
+  } else {
+    await sql`
+      UPDATE cotizaciones
+      SET costo_real = ${costoReal}, comision_monto = ${comisionMonto}, updated_at = now()
+      WHERE id = ${cotizacionId}
+    `;
+  }
 }
