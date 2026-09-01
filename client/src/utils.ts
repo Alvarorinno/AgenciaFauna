@@ -1,4 +1,4 @@
-import type { LineaNegocio } from './types';
+import type { LineaNegocio, Proveedor } from './types';
 
 export function formatCLP(n: number): string {
   return '$' + Math.round(n || 0).toLocaleString('es-CL');
@@ -50,3 +50,23 @@ export function formatOc(nCot: number | string, linea: LineaNegocio, orden: numb
 
 // Colores para diferenciar Fee vs Variable en gráficos (ej. Ventas por Mes apilado).
 export const FEE_VARIABLE_COLORS = { fee: '#2c4a7c', variable: '#c8a24a' } as const;
+
+// El directorio maestro de Proveedores (ver server/db.js) NO tiene un campo RUT
+// dedicado: datos_empresa/cuenta son texto libre (la planilla histórica mezcla
+// razón social/RUT/giro/dirección en un solo bloque, sin estructura consistente).
+// Para autocompletar el RUT al elegir un proveedor desde el detalle de una
+// cotización, se extrae con una heurística: busca un patrón de RUT chileno
+// (6 a 8 dígitos, puntos opcionales, guion, dígito verificador o "K") primero en
+// datos_empresa y si no aparece ahí, en cuenta. Es best-effort — si el texto no
+// sigue el patrón esperado, no encuentra nada y el campo queda vacío para que se
+// complete a mano, igual que antes de tener este autocompletado.
+const RUT_PATTERN = /(\d{1,2}\.?\d{3}\.?\d{3})\s*-\s*([\dkK])\b/;
+
+function findRut(text: string): string {
+  const match = (text || '').match(RUT_PATTERN);
+  return match ? `${match[1]}-${match[2].toUpperCase()}` : '';
+}
+
+export function extractRut(proveedor: Proveedor): string {
+  return findRut(proveedor.datos_empresa) || findRut(proveedor.cuenta);
+}

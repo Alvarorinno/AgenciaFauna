@@ -1,12 +1,12 @@
-import { Fragment, useState } from 'react';
-import type { Cotizacion, CotizacionGrupo, CotizacionItem } from '../types';
+import { Fragment, useEffect, useState } from 'react';
+import type { Cotizacion, CotizacionGrupo, CotizacionItem, Proveedor } from '../types';
 import {
   createGrupo, updateGrupo, deleteGrupo,
   createItem, updateItem, deleteItem,
   getCotizaciones, downloadCotizacionClientePdf, downloadGrupoOcPdf,
-  updateComision, duplicateCotizacion
+  updateComision, duplicateCotizacion, getProveedores
 } from '../api';
-import { formatCLP } from '../utils';
+import { formatCLP, extractRut, searchNormalize } from '../utils';
 
 interface Props {
   cotizacion: Cotizacion;
@@ -32,6 +32,17 @@ export default function CotizacionDetalle({ cotizacion, canEdit, onCotizacionUpd
   const [draftItem, setDraftItem] = useState<Partial<CotizacionItem>>({});
   const [editingComision, setEditingComision] = useState(false);
   const [draftComisionPct, setDraftComisionPct] = useState('');
+  // Directorio maestro de proveedores (sección "Proveedores" del menú), usado para
+  // sugerir coincidencias mientras se escribe el nombre del proveedor en un grupo
+  // y autocompletar su RUT al elegir uno de la lista. Se carga una sola vez, solo
+  // si se puede editar (de lo contrario no hace falta).
+  const [proveedoresDir, setProveedoresDir] = useState<Proveedor[]>([]);
+  const [showProveedorSuggest, setShowProveedorSuggest] = useState(false);
+
+  useEffect(() => {
+    if (!canEdit) return;
+    getProveedores().then(setProveedoresDir).catch(() => {});
+  }, [canEdit]);
 
   async function refresh() {
     const all = await getCotizaciones();
@@ -70,6 +81,20 @@ export default function CotizacionDetalle({ cotizacion, canEdit, onCotizacionUpd
     setEditingGrupoId(g.id);
     setDraftGrupo({ nombre: g.nombre, proveedor: g.proveedor, rut_proveedor: g.rut_proveedor });
   }
+
+  // Al elegir una sugerencia del directorio, se completa el RUT automáticamente
+  // (best-effort, ver extractRut en utils.ts) pero queda como un input editable
+  // normal: si la extracción no encontró nada, o encontró algo incorrecto, se
+  // puede corregir a mano igual que siempre.
+  function selectProveedor(p: Proveedor) {
+    setDraftGrupo(d => ({ ...d, proveedor: p.nombre, rut_proveedor: extractRut(p) }));
+    setShowProveedorSuggest(false);
+  }
+
+  const proveedorQuery = searchNormalize(draftGrupo.proveedor ?? '').trim();
+  const proveedorSuggestions = proveedorQuery.length > 0
+    ? proveedoresDir.filter(p => searchNormalize(p.nombre).includes(proveedorQuery)).slice(0, 8)
+    : [];
 
   async function saveGrupo(id: number) {
     setBusy(true);
@@ -260,9 +285,37 @@ export default function CotizacionDetalle({ cotizacion, canEdit, onCotizacionUpd
                     <td style={{ ...detCellStyle, background: COSTO_BG, color: COSTO_TEXT }}>{formatCLP(g.subtotal_costo)}</td>
                     <td style={{ ...detCellStyle, background: COSTO_BG, color: g.utilidad >= 0 ? CLIENTE_TEXT : '#6d2632' }}>{formatCLP(g.utilidad)}</td>
                     <td style={{ ...detCellStyle, background: COSTO_BG, color: g.utilidad >= 0 ? CLIENTE_TEXT : '#6d2632' }}>{g.pct_utilidad.toFixed(1)}%</td>
-                    <td style={{ ...detCellStyle, background: COSTO_BG }}>
+                    <td style={{ ...detCellStyle, background: COSTO_BG, position: 'relative' }}>
                       {editingGrupoId === g.id ? (
-                        <input style={inputStyle} value={draftGrupo.proveedor ?? ''} onChange={e => setDraftGrupo(d => ({ ...d, proveedor: e.target.value }))} placeholder="Proveedor" />
+                        <>
+                          <input
+                            autoComplete="off"
+                            style={inputStyle}
+                            value={draftGrupo.proveedor ?? ''}
+                            onChange={e => { setDraftGrupo(d => ({ ...d, proveedor: e.target.value })); setShowProveedorSuggest(true); }}
+                            onFocus={() => setShowProveedorSuggest(true)}
+                            onBlur={() => setTimeout(() => setShowProveedorSuggest(false), 150)}
+                            placeholder="Proveedor"
+                          />
+                          {showProveedorSuggest && proveedorSuggestions.length > 0 && (
+                            <div style={{
+                              position: 'absolute', top: '100%', left: 6, zIndex: 30, minWidth: 220, maxHeight: 190, overflowY: 'auto',
+                              background: '#fff', border: '1px solid #dfd8c8', borderRadius: 7, boxShadow: '0 6px 16px rgba(0,0,0,0.12)'
+                            }}>
+                              {proveedorSuggestions.map(p => (
+                                <div
+                                  key={p.id}
+                                  onMouseDown={() => selectProveedor(p)}
+                                  style={{ padding: '6px 10px', fontSize: 12.5, cursor: 'pointer', borderBottom: '1px solid #f2ede2' }}
+                                  onMouseEnter={e => (e.currentTarget.style.background = '#f7f4ee')}
+                                  onMouseLeave={e => (e.currentTarget.style.background = '#fff')}
+                                >
+                                  {p.nombre}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </>
                       ) : g.proveedor}
                     </td>
                     <td style={{ ...detCellStyle, background: COSTO_BG }}>
