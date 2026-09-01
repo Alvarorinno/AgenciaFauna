@@ -1,11 +1,22 @@
 import { Router } from 'express';
 import PDFDocument from 'pdfkit';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { sql } from '../db.js';
 import { authMiddleware } from './auth.js';
 import { withDerived, withItemDerived, withGrupoDerived, recomputeTotales } from '../lib/calc.js';
 
 const router = Router();
 router.use(authMiddleware);
+
+// Logo en PDF (cotización cliente y OC), mismo archivo para ambas líneas de
+// negocio (Fauna RD y Agencia): la empresa emisora (Agencia Fauna SpA) es la
+// misma en los dos casos, no se discrimina por línea. Fondo ya recortado a
+// transparente y a su bounding box real (1542x496 px) para poder ubicarlo con
+// un ancho fijo y derivar el alto manteniendo la proporción.
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const LOGO_PATH = path.join(__dirname, '../assets/logo-fauna.png');
+const LOGO_ASPECT = 496 / 1542;
 
 // Solo 'encargado' puede crear/editar/eliminar el detalle de proveedores
 // (mismo criterio que ENCARGADO_FIELDS en routes/cotizaciones.js).
@@ -382,9 +393,11 @@ router.get('/grupos/:id/pdf-oc', async (req, res) => {
 });
 
 function drawHeader(doc, title, subtitle, email = COMPANY.email) {
-  doc.fontSize(16).fillColor(COLORS.tinta).font('Helvetica-BoldOblique').text('Agencia Fauna', 40, 40);
+  const logoWidth = 120;
+  const logoHeight = logoWidth * LOGO_ASPECT;
+  doc.image(LOGO_PATH, 40, 40, { width: logoWidth });
   doc.font('Helvetica').fontSize(8.5).fillColor('#5b5f6b');
-  doc.text(COMPANY.razonSocial);
+  doc.text(COMPANY.razonSocial, 40, 40 + logoHeight + 8);
   doc.text(`RUT: ${COMPANY.rut}`);
   doc.text(COMPANY.direccion);
   doc.text(email);
