@@ -37,6 +37,12 @@ export default function Eventos({ linea, presetMes, onPresetConsumed, onDuplicat
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({ mes: 'todos', cliente: 'todos', estadoPago: 'todos', tipoIngreso: 'todos', facturado: 'todos', search: '' });
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
+  // IDs de filas donde el input de Costo Cliente quedó habilitado al entrar a modo
+  // edición (porque en ese momento no había ningún proveedor con monto cargado que
+  // sumara a costo_cliente). Se decide UNA VEZ al abrir la edición: si se recalculara
+  // en cada render contra row.costo_cliente (que patchRow va mutando con cada tecla),
+  // el input desaparecía apenas se tipeaba el primer dígito distinto de cero.
+  const [costoClienteEditable, setCostoClienteEditable] = useState<Set<number>>(new Set());
 
   // Al llegar desde el gráfico "Ventas por Mes" del dashboard, se preselecciona
   // el mes clickeado. El `token` cambia en cada click (aunque sea el mismo mes),
@@ -118,7 +124,15 @@ export default function Eventos({ linea, presetMes, onPresetConsumed, onDuplicat
   }
 
   function toggleEdit(row: Cotizacion) {
-    patchRow(row.id, { editing: !row.editing });
+    const turningOn = !row.editing;
+    if (turningOn) {
+      setCostoClienteEditable(prev => {
+        const next = new Set(prev);
+        if (!row.tiene_detalle || Number(row.costo_cliente) === 0) next.add(row.id); else next.delete(row.id);
+        return next;
+      });
+    }
+    patchRow(row.id, { editing: turningOn });
   }
 
   async function saveRow(row: Cotizacion) {
@@ -267,8 +281,8 @@ export default function Eventos({ linea, presetMes, onPresetConsumed, onDuplicat
                       </span>
                     )}
                   </td>
-                  <td style={{ ...cellStyle, ...dimStyle(canEditEncargado) }} title={row.tiene_detalle && Number(row.costo_cliente) !== 0 ? 'Se calcula automáticamente desde el detalle de proveedores' : ''}>
-                    {row.editing && canEditEncargado && (!row.tiene_detalle || Number(row.costo_cliente) === 0) ? (
+                  <td style={{ ...cellStyle, ...dimStyle(canEditEncargado) }} title={row.tiene_detalle && !costoClienteEditable.has(row.id) ? 'Se calcula automáticamente desde el detalle de proveedores' : ''}>
+                    {row.editing && canEditEncargado && costoClienteEditable.has(row.id) ? (
                       <input type="number" style={inputStyle} value={row.costo_cliente} onChange={e => patchRow(row.id, { costo_cliente: Number(e.target.value) })} />
                     ) : formatCLP(row.costo_cliente)}
                   </td>
