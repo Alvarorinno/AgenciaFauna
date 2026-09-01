@@ -115,6 +115,13 @@ router.post('/:id/duplicate', async (req, res) => {
   const [{ m }] = await sql`SELECT MAX(n_cot) as m FROM cotizaciones`;
   const nCot = (m || 0) + 1;
 
+  // costo_cliente/costo_real del original se copian como valores iniciales: si el
+  // original tiene grupos con ítems de precio real, recomputeTotales() los pisa más
+  // abajo con la suma de los ítems recién copiados (comportamiento sin cambios). Si
+  // el original NO tiene ningún grupo cargado, no hay ítems de los que recomputar
+  // nada — esos costos son un valor referencial puesto a mano por el encargado (ver
+  // recomputeTotales) y deben viajar con la copia, si no la duplicación los resetea
+  // a $0 sin forma de recuperarlos.
   const [nueva] = await sql`
     INSERT INTO cotizaciones (
       n_cot, mes, cliente, proyecto, descripcion, costo_cliente, costo_real,
@@ -122,7 +129,7 @@ router.post('/:id/duplicate', async (req, res) => {
     )
     VALUES (
       ${nCot}, ${original.mes}, ${original.cliente}, ${original.proyecto}, ${original.descripcion},
-      0, 0, ${original.comision_pct || 0}, 0, 'na', 'pendiente', ${original.linea_negocio}, ${original.tipo_ingreso}
+      ${original.costo_cliente || 0}, ${original.costo_real || 0}, ${original.comision_pct || 0}, 0, 'na', 'pendiente', ${original.linea_negocio}, ${original.tipo_ingreso}
     )
     RETURNING *
   `;
