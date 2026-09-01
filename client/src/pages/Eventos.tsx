@@ -105,14 +105,19 @@ export default function Eventos({ linea, presetMes, onPresetConsumed, onDuplicat
     return haystack.includes(searchTerm);
   };
 
-  const filteredRows = rows.filter(r =>
-    (filters.mes === 'todos' || r.mes === filters.mes) &&
-    (filters.cliente === 'todos' || r.cliente === filters.cliente) &&
-    (filters.estadoPago === 'todos' || r.estado_pago === filters.estadoPago) &&
-    (filters.tipoIngreso === 'todos' || r.tipo_ingreso === filters.tipoIngreso) &&
-    (filters.facturado === 'todos' || (filters.facturado === 'facturado' ? tieneFactura(r) : !tieneFactura(r))) &&
-    matchesSearch(r)
-  );
+  // Orden de la grilla: por mes (calendario, no alfabético — usa el índice en
+  // MESES) y dentro de cada mes por N° de cotización, para que los eventos/
+  // proyectos de RD y Agencia se lean en el orden que ocurren en el año.
+  const filteredRows = rows
+    .filter(r =>
+      (filters.mes === 'todos' || r.mes === filters.mes) &&
+      (filters.cliente === 'todos' || r.cliente === filters.cliente) &&
+      (filters.estadoPago === 'todos' || r.estado_pago === filters.estadoPago) &&
+      (filters.tipoIngreso === 'todos' || r.tipo_ingreso === filters.tipoIngreso) &&
+      (filters.facturado === 'todos' || (filters.facturado === 'facturado' ? tieneFactura(r) : !tieneFactura(r))) &&
+      matchesSearch(r)
+    )
+    .sort((a, b) => (MESES.indexOf(a.mes) - MESES.indexOf(b.mes)) || (Number(a.n_cot) - Number(b.n_cot)));
 
   // Totales de la sección "Calculado" para las filas visibles (respeta los filtros activos).
   const totalCostoClienteFiltrado = filteredRows.reduce((sum, r) => sum + (Number(r.costo_cliente) || 0), 0);
