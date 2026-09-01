@@ -25,6 +25,14 @@ export default function DashboardGeneral() {
   const estados = stats.facturacionPorEstado;
   const lineas = (Object.keys(LINEA_LABELS) as (keyof typeof LINEA_LABELS)[]);
 
+  // % utilidad promedio por línea (misma fórmula que el backend usa para el
+  // consolidado: utilidad / vendido), para el cuadro que las desglosa.
+  const pctPorLinea = (l: keyof typeof LINEA_LABELS) => {
+    const d = stats.porLinea[l];
+    if (!d || !d.totalCotizado) return 0;
+    return (d.totalUtilidad / d.totalCotizado) * 100;
+  };
+
   return (
     <div>
       <h1 className="title-serif font-semibold" style={{ fontSize: 24, color: '#12192b' }}>Dashboard General</h1>
@@ -34,14 +42,24 @@ export default function DashboardGeneral() {
 
       <div
         className="grid mb-6"
-        style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 16 }}
+        style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 12 }}
       >
-        <StatCard label="Total Vendido" value={formatCLPCompact(stats.totalCotizado)} />
-        <StatCard label="Total Utilidad" value={formatCLPCompact(stats.totalUtilidad)} color="#1f7a4d" />
-        <StatCard label="% Utilidad Promedio" value={`${stats.pctUtilidadPromedio.toFixed(1)}%`} />
-        <StatCard label="Saldo por Facturar" value={formatCLPCompact(stats.saldoPorFacturar)} color="#8a6a1f" />
-        <StatCard label="Proyectos" value={String(stats.totalEventos)} />
-        <StatCard label="Cotizaciones a Revisar" value={String(stats.totalCotizacionesARevisar)} color="#8a6a1f" />
+        <StatCard compact label="Total Vendido" value={formatCLPCompact(stats.totalCotizado)} />
+        <StatCard compact label="Total Utilidad" value={formatCLPCompact(stats.totalUtilidad)} color="#1f7a4d" />
+        <StatCard compact label="% Utilidad Promedio" value={`${stats.pctUtilidadPromedio.toFixed(1)}%`} />
+        <StatCard
+          compact
+          label="% Utilidad Promedio"
+          value={
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 1, fontSize: 15 }}>
+              <span>RD: {pctPorLinea('fauna_rd').toFixed(1)}%</span>
+              <span>Agencia: {pctPorLinea('agencia').toFixed(1)}%</span>
+            </div>
+          }
+        />
+        <StatCard compact label="Saldo por Facturar" value={formatCLPCompact(stats.saldoPorFacturar)} color="#8a6a1f" />
+        <StatCard compact label="Proyectos" value={String(stats.totalEventos)} />
+        <StatCard compact label="Cotizaciones a Revisar" value={String(stats.totalCotizacionesARevisar)} color="#8a6a1f" />
       </div>
 
       <div className="grid mb-6" style={{ gridTemplateColumns: '1fr 1fr', gap: 16 }}>
