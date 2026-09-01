@@ -47,7 +47,7 @@ const COMPANY = {
   razonSocial: 'Agencia Fauna SpA',
   rut: '77.897.540-1',
   direccion: 'Sebastian Piñera 548, Las Condes',
-  email: 'francisca.sierralta@agenciafauna.com'
+  email: 'agustina.garcia@agenciafauna.com'
 };
 
 // Correo de contacto que se muestra en la Orden de Compra: depende de la línea
