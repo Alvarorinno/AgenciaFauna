@@ -307,8 +307,6 @@ router.get('/cotizaciones/:id/pdf-cliente', async (req, res) => {
     }
     granTotal += gTotal;
 
-    ensureSpace(doc, 20);
-    doc.fontSize(9.5).fillColor(COLORS.tinta).text(`Subtotal: ${fmtCLP(gTotal)}`, 40, doc.y, { width: 515, align: 'right' });
     doc.moveDown(1);
   }
 
@@ -319,7 +317,6 @@ router.get('/cotizaciones/:id/pdf-cliente', async (req, res) => {
   const totalClp = totalNeto + iva;
 
   drawTotalsFooter(doc, {
-    subtotalNeto,
     comisionMonto: granTotal ? comisionMonto : 0,
     comisionPct: Number(cot.comision_pct) || 0,
     totalNeto,
@@ -469,9 +466,8 @@ function drawTotalsBox(doc, rows, drawLeftContent) {
 // derecha, sobre un fondo gris — reemplaza la línea simple de "TOTAL COTIZACIÓN".
 // Deja explícito que los montos de arriba (por ítem y subtotal por proveedor)
 // son NETOS, y que el IVA (19%) recién se suma acá al final.
-function drawTotalsFooter(doc, { subtotalNeto, comisionMonto, comisionPct, totalNeto, iva, totalClp }) {
+function drawTotalsFooter(doc, { comisionMonto, comisionPct, totalNeto, iva, totalClp }) {
   const rows = [
-    { label: 'SUBTOTAL NETO', value: fmtCLP(subtotalNeto) },
     ...(comisionMonto > 0 ? [{ label: `COMISIÓN AGENCIA ${comisionPct}%`, value: fmtCLP(comisionMonto) }] : []),
     { label: 'TOTAL NETO', value: fmtCLP(totalNeto), bold: true },
     { label: 'IVA (19%)', value: fmtCLP(iva) },
