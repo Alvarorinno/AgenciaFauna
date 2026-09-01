@@ -292,17 +292,8 @@ router.get('/cotizaciones/:id/pdf-cliente', async (req, res) => {
 
     let gTotal = 0;
     for (const it of gItems) {
-      ensureSpace(doc, 20);
-      const y = doc.y;
-      doc.fontSize(9).fillColor(COLORS.tinta);
-      const cols = [260, 60, 95, 100];
       const vals = [it.nombre || '', String(it.cantidad), fmtCLP(it.unitario_cliente), fmtCLP(it.subtotal_cliente)];
-      let x = 40;
-      vals.forEach((v, i) => {
-        doc.text(v, x, y, { width: cols[i] - 4 });
-        x += cols[i];
-      });
-      doc.moveDown(0.9);
+      drawTableRow(doc, vals, [260, 60, 95, 100]);
       gTotal += it.subtotal_cliente;
     }
     granTotal += gTotal;
@@ -368,17 +359,8 @@ router.get('/grupos/:id/pdf-oc', async (req, res) => {
 
   let total = 0;
   for (const it of items) {
-    ensureSpace(doc, 20);
-    const y = doc.y;
-    doc.fontSize(9).fillColor(COLORS.tinta);
-    const cols = [260, 60, 95, 100];
     const vals = [it.nombre || '', String(it.cantidad), fmtCLP(it.unitario_costo), fmtCLP(it.subtotal_costo)];
-    let x = 40;
-    vals.forEach((v, i) => {
-      doc.text(v, x, y, { width: cols[i] - 4 });
-      x += cols[i];
-    });
-    doc.moveDown(0.9);
+    drawTableRow(doc, vals, [260, 60, 95, 100]);
     total += it.subtotal_costo;
   }
 
@@ -507,6 +489,26 @@ function tableHeader(doc, labels, widths) {
   doc.moveDown(0.7);
   doc.moveTo(40, doc.y).lineTo(555, doc.y).strokeColor('#efe9df').lineWidth(0.5).stroke();
   doc.moveDown(0.4);
+}
+
+// Dibuja una fila de ítem (usada por la cotización cliente y por la OC) y
+// avanza el cursor según el alto REAL del texto renderado. Antes se avanzaba
+// un alto fijo (moveDown(0.9)) sin importar cuántas líneas ocupara la
+// descripción al hacer wrap dentro de su columna: con un ítem largo o muchos
+// ítems, la fila siguiente (o el cuadro de totales) se dibujaba encima del
+// texto todavía sin terminar, superponiéndose e ilegible.
+function drawTableRow(doc, vals, cols) {
+  doc.font('Helvetica').fontSize(9);
+  const rowHeight = Math.max(...vals.map((v, i) => doc.heightOfString(String(v ?? ''), { width: cols[i] - 4 }))) + 8;
+  ensureSpace(doc, rowHeight);
+  const y = doc.y;
+  doc.fillColor(COLORS.tinta);
+  let x = 40;
+  vals.forEach((v, i) => {
+    doc.text(String(v ?? ''), x, y, { width: cols[i] - 4 });
+    x += cols[i];
+  });
+  doc.y = y + rowHeight;
 }
 
 function ensureSpace(doc, needed) {
