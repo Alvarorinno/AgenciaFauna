@@ -374,10 +374,9 @@ router.get('/grupos/:id/pdf-oc', async (req, res) => {
     total += it.subtotal_costo;
   }
 
-  ensureSpace(doc, 40);
-  doc.moveTo(40, doc.y).lineTo(555, doc.y).strokeColor(COLORS.laton).lineWidth(1.5).stroke();
-  doc.moveDown(0.5);
-  doc.fontSize(13).fillColor(COLORS.tinta).text(`TOTAL A PAGAR: ${fmtCLP(total)}`, 40, doc.y, { width: 515, align: 'right' });
+  ensureSpace(doc, 20);
+  doc.moveDown(0.3);
+  drawOcTotalsFooter(doc, total);
 
   doc.end();
 });
@@ -424,17 +423,12 @@ function sectionHeader(doc, label) {
   doc.moveDown(0.5);
 }
 
-// Bloque final de la cotización cliente: nota de forma de pago/validez a la
-// izquierda + desglose de totales (neto, comisión, IVA, total con IVA) a la
-// derecha, sobre un fondo gris — reemplaza la línea simple de "TOTAL COTIZACIÓN".
-function drawTotalsFooter(doc, { subtotalNeto, comisionMonto, comisionPct, totalNeto, iva, totalClp }) {
-  const rows = [
-    { label: 'SUBTOTAL NETO', value: fmtCLP(subtotalNeto) },
-    ...(comisionMonto > 0 ? [{ label: `COMISIÓN AGENCIA ${comisionPct}%`, value: fmtCLP(comisionMonto) }] : []),
-    { label: 'TOTAL NETO', value: fmtCLP(totalNeto), bold: true },
-    { label: 'IVA (19%)', value: fmtCLP(iva) },
-    { label: 'TOTAL CLP', value: fmtCLP(totalClp), bold: true }
-  ];
+// Caja gris de totales compartida por la cotización cliente y la OC: dibuja las
+// filas label/monto alineadas a la derecha, y opcionalmente una nota a la
+// izquierda (ej. forma de pago) mediante drawLeftContent(boxY). El alto de la
+// caja se ajusta a la cantidad de filas, con un mínimo para que la nota (cuando
+// la hay) siempre quepa completa.
+function drawTotalsBox(doc, rows, drawLeftContent) {
   const rowH = 15;
   const boxHeight = Math.max(rows.length * rowH, 62) + 16;
 
@@ -442,11 +436,7 @@ function drawTotalsFooter(doc, { subtotalNeto, comisionMonto, comisionPct, total
   const boxY = doc.y;
   doc.rect(40, boxY, 515, boxHeight).fill('#c7c7c7');
 
-  // Columna izquierda: nota de forma de pago / validez
-  doc.fillColor('#12192b');
-  doc.fontSize(9).font('Helvetica-Bold').text('Nota', 50, boxY + 10, { width: 300 });
-  doc.font('Helvetica-Bold').text('Forma de pago: 50% del total anticipado, 50% contra entrega.', 50, boxY + 23, { width: 300 });
-  doc.font('Helvetica').fontSize(9).text('Validez de cotización: 15 días.', 50, boxY + 46, { width: 300 });
+  if (drawLeftContent) drawLeftContent(boxY);
 
   // Columna derecha: totales, alineados en dos sub-columnas (label / monto)
   let rowY = boxY + 10;
@@ -459,6 +449,41 @@ function drawTotalsFooter(doc, { subtotalNeto, comisionMonto, comisionPct, total
 
   doc.font('Helvetica');
   doc.y = boxY + boxHeight + 10;
+}
+
+// Bloque final de la cotización cliente: nota de forma de pago/validez a la
+// izquierda + desglose de totales (neto, comisión, IVA, total con IVA) a la
+// derecha, sobre un fondo gris — reemplaza la línea simple de "TOTAL COTIZACIÓN".
+// Deja explícito que los montos de arriba (por ítem y subtotal por proveedor)
+// son NETOS, y que el IVA (19%) recién se suma acá al final.
+function drawTotalsFooter(doc, { subtotalNeto, comisionMonto, comisionPct, totalNeto, iva, totalClp }) {
+  const rows = [
+    { label: 'SUBTOTAL NETO', value: fmtCLP(subtotalNeto) },
+    ...(comisionMonto > 0 ? [{ label: `COMISIÓN AGENCIA ${comisionPct}%`, value: fmtCLP(comisionMonto) }] : []),
+    { label: 'TOTAL NETO', value: fmtCLP(totalNeto), bold: true },
+    { label: 'IVA (19%)', value: fmtCLP(iva) },
+    { label: 'TOTAL CLP', value: fmtCLP(totalClp), bold: true }
+  ];
+  drawTotalsBox(doc, rows, boxY => {
+    doc.fillColor('#12192b');
+    doc.fontSize(9).font('Helvetica-Bold').text('Nota', 50, boxY + 10, { width: 300 });
+    doc.font('Helvetica-Bold').text('Forma de pago: 50% del total anticipado, 50% contra entrega.', 50, boxY + 23, { width: 300 });
+    doc.font('Helvetica').fontSize(9).text('Validez de cotización: 15 días.', 50, boxY + 46, { width: 300 });
+  });
+}
+
+// Mismo desglose (neto → IVA 19% → total) para la Orden de Compra al proveedor,
+// donde antes solo se mostraba un "TOTAL A PAGAR" en bruto sin dejar claro que
+// los precios unitarios/subtotales de la tabla de arriba son netos.
+function drawOcTotalsFooter(doc, totalNeto) {
+  const iva = totalNeto * 0.19;
+  const totalConIva = totalNeto + iva;
+  const rows = [
+    { label: 'TOTAL NETO', value: fmtCLP(totalNeto), bold: true },
+    { label: 'IVA (19%)', value: fmtCLP(iva) },
+    { label: 'TOTAL', value: fmtCLP(totalConIva), bold: true }
+  ];
+  drawTotalsBox(doc, rows);
 }
 
 function tableHeader(doc, labels, widths) {
