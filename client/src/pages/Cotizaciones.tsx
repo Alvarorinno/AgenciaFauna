@@ -385,8 +385,8 @@ export default function Cotizaciones({ linea, focusCotizacion, onFocusConsumed }
                     <div className="flex items-center gap-2">
                       {canEdit && row.estado_cotizacion === 'pendiente' && (
                         <>
-                          <button onClick={() => handleAprobar(row.id)} title="Aprobar"
-                            style={{ width: 30, height: 30, borderRadius: '50%', background: '#dcecdf', color: '#1f7a4d' }}>✓</button>
+                          <button onClick={() => handleAprobar(row.id)} title="Aprobar (pasa a Proyecto)"
+                            style={{ width: 30, height: 30, borderRadius: '50%', background: '#dcecdf', color: '#1f7a4d', fontWeight: 700 }}>P</button>
                           <button onClick={() => handleRechazar(row.id)} title="Rechazar"
                             style={{ width: 30, height: 30, borderRadius: '50%', background: '#f6e4e6', color: '#6d2632' }}>✕</button>
                         </>
