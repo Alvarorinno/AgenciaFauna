@@ -39,6 +39,13 @@ const COMPANY = {
   email: 'francisca.sierralta@agenciafauna.com'
 };
 
+// Correo de contacto que se muestra en la Orden de Compra: depende de la línea
+// de negocio dueña de la cotización (cada línea la gestiona una encargada distinta),
+// no siempre el de Francisca (RD) — Agencia usa el de Agustina.
+function ocEmailForLinea(linea) {
+  return linea === 'agencia' ? 'agustina.garcia@agenciafauna.com' : COMPANY.email;
+}
+
 const COLORS = { tinta: '#12192b', papel: '#f7f4ee', laton: '#c8a24a', burdeos: '#6d2632' };
 
 function fmtCLP(n) {
@@ -336,7 +343,7 @@ router.get('/grupos/:id/pdf-oc', async (req, res) => {
   res.setHeader('Content-Disposition', `attachment; filename="oc-${numeroOc}-${(grupo.proveedor || 'proveedor').replace(/[^a-z0-9]+/gi, '-')}.pdf"`);
   doc.pipe(res);
 
-  drawHeader(doc, 'ORDEN DE COMPRA', `N° OC: ${numeroOc}`);
+  drawHeader(doc, 'ORDEN DE COMPRA', `N° OC: ${numeroOc}`, ocEmailForLinea(cot?.linea_negocio));
 
   doc.fontSize(10).fillColor(COLORS.tinta);
   doc.text(`N° Cotización asociada: ${cot ? formatNCot(cot.n_cot ?? cot.id, cot.linea_negocio) : '—'}`, 40, doc.y + 6);
@@ -375,13 +382,13 @@ router.get('/grupos/:id/pdf-oc', async (req, res) => {
   doc.end();
 });
 
-function drawHeader(doc, title, subtitle) {
+function drawHeader(doc, title, subtitle, email = COMPANY.email) {
   doc.fontSize(16).fillColor(COLORS.tinta).font('Helvetica-BoldOblique').text('Agencia Fauna', 40, 40);
   doc.font('Helvetica').fontSize(8.5).fillColor('#5b5f6b');
   doc.text(COMPANY.razonSocial);
   doc.text(`RUT: ${COMPANY.rut}`);
   doc.text(COMPANY.direccion);
-  doc.text(COMPANY.email);
+  doc.text(email);
   const leftBottomY = doc.y; // fin del bloque de datos de la empresa (columna izquierda)
 
   doc.fontSize(18).fillColor(COLORS.laton).font('Helvetica-Bold').text(title, 40, 40, { width: 515, align: 'right' });
