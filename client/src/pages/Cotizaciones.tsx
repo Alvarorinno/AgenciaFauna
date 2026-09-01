@@ -129,12 +129,22 @@ export default function Cotizaciones({ linea, focusCotizacion, onFocusConsumed }
     setRows(prev => prev.map(r => r.id === id ? { ...r, ...patch } : r));
   }
 
+  // Suma real de lo que los ítems de proveedores llevan cargado al cliente (antes
+  // de comisión). Es DISTINTO de row.costo_cliente: éste puede tener un valor
+  // referencial puesto a mano por el ejecutivo mientras los ítems siguen en $0
+  // (ver PUT /api/cotizaciones/:id) — si se usara costo_cliente para decidir si el
+  // campo sigue editable, se bloquearía apenas se pusiera ese valor referencial,
+  // aunque los proveedores todavía no tengan precio de venta definido.
+  function itemsSubtotalCliente(row: Cotizacion) {
+    return row.grupos.reduce((s, g) => s + (Number(g.subtotal_cliente) || 0), 0);
+  }
+
   function toggleEdit(row: Cotizacion) {
     const turningOn = !row.editing;
     if (turningOn) {
       setCostoClienteEditable(prev => {
         const next = new Set(prev);
-        if (!row.tiene_detalle || Number(row.costo_cliente) === 0) next.add(row.id); else next.delete(row.id);
+        if (!row.tiene_detalle || itemsSubtotalCliente(row) === 0) next.add(row.id); else next.delete(row.id);
         return next;
       });
     }

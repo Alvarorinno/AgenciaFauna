@@ -171,16 +171,26 @@ router.put('/:id', async (req, res) => {
   // (ver recomputeTotales en lib/calc.js, disparado desde routes/detalle.js)
   // y dejan de ser editables a mano, incluso si vienen en el payload.
   //
-  // Excepción: si costo_cliente da 0 (hay costo de proveedor cargado pero aún
-  // no se definió el valor de venta ítem por ítem), se deja editable a mano
-  // para que el ejecutivo ponga un valor referencial mientras tanto — SOLO
-  // mientras siga en 0 (ver recomputeTotales, que no pisa un valor puesto a
-  // mano hasta que haya un precio real en algún ítem). costo_real nunca se
+  // Excepción: si los ítems todavía NO suman nada a costo_cliente (hay costo de
+  // proveedor cargado pero aún no se definió el valor de venta ítem por ítem),
+  // se deja editable a mano para que el ejecutivo ponga un valor referencial
+  // mientras tanto — SOLO mientras los ítems sigan sin sumar (ver recomputeTotales,
+  // que no pisa un valor puesto a mano hasta que haya un precio real en algún
+  // ítem). Importante: el chequeo es sobre la SUMA DE LOS ÍTEMS, no sobre el
+  // costo_cliente ya guardado — si no fuera así, apenas el ejecutivo pusiera un
+  // valor referencial (costo_cliente > 0) el campo se bloquearía de nuevo aunque
+  // los proveedores sigan sin definir precio de venta. costo_real nunca se
   // habilita por esta vía: siempre refleja el costo real ya conocido.
   const [{ n: gruposCount }] = await sql`SELECT COUNT(*)::int as n FROM cotizacion_grupos WHERE cotizacion_id = ${id}`;
-  const costoClienteActual = Number(existing[0].costo_cliente) || 0;
+  const [{ base: itemsBaseRaw }] = await sql`
+    SELECT COALESCE(SUM(i.cantidad * i.unitario_cliente), 0) as base
+    FROM cotizacion_items i
+    JOIN cotizacion_grupos g ON g.id = i.grupo_id
+    WHERE g.cotizacion_id = ${id}
+  `;
+  const itemsBase = Number(itemsBaseRaw) || 0;
   const lockedFields = gruposCount > 0
-    ? (costoClienteActual === 0 ? ['costo_real'] : ['costo_cliente', 'costo_real'])
+    ? (itemsBase === 0 ? ['costo_real'] : ['costo_cliente', 'costo_real'])
     : [];
 
   const updates = {};
