@@ -45,7 +45,7 @@ async function checkLineaCotizacion(req, res, cotizacionId) {
 
 const COMPANY = {
   razonSocial: 'Agencia Fauna SpA',
-  rut: '77.897.540-1',
+  rut: '77.897.540-8',
   direccion: 'Sebastian Piñera 548, Las Condes',
   email: 'agustina.garcia@agenciafauna.com'
 };
