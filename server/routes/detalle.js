@@ -46,15 +46,18 @@ async function checkLineaCotizacion(req, res, cotizacionId) {
 const COMPANY = {
   razonSocial: 'Agencia Fauna SpA',
   rut: '77.897.540-8',
-  direccion: 'Sebastian Piñera 548, Las Condes',
-  email: 'agustina.garcia@agenciafauna.com'
+  direccion: 'Sebastian Piñera 548, Las Condes'
 };
 
-// Correo de contacto que se muestra en la Orden de Compra: depende de la línea
-// de negocio dueña de la cotización (cada línea la gestiona una encargada distinta),
-// no siempre el de Francisca (RD) — Agencia usa el de Agustina.
-function ocEmailForLinea(linea) {
-  return linea === 'agencia' ? 'agustina.garcia@agenciafauna.com' : COMPANY.email;
+// Correo de contacto que se muestra tanto en la cotización como en la Orden de
+// Compra: depende de la línea de negocio dueña de la cotización (cada línea la
+// gestiona una encargada distinta) — RD usa el de Francisca, Agencia el de Agustina.
+const EMAIL_POR_LINEA = {
+  fauna_rd: 'francisca.sierralta@agenciafauna.com',
+  agencia: 'agustina.garcia@agenciafauna.com'
+};
+function emailForLinea(linea) {
+  return EMAIL_POR_LINEA[linea] || EMAIL_POR_LINEA.fauna_rd;
 }
 
 const COLORS = { tinta: '#12192b', papel: '#f7f4ee', laton: '#c8a24a', burdeos: '#6d2632' };
@@ -273,7 +276,7 @@ router.get('/cotizaciones/:id/pdf-cliente', async (req, res) => {
     `N° Cotización: ${formatNCot(cot.n_cot ?? cot.id, cot.linea_negocio)}`,
     `Cliente: ${cot.cliente || '—'}`,
     `Fecha: ${new Date().toLocaleDateString('es-CL')}`
-  ]);
+  ], emailForLinea(cot.linea_negocio));
 
   doc.fontSize(10).fillColor(COLORS.tinta);
   doc.text(`Proyecto: ${cot.proyecto || '—'}`, 40, doc.y + 6);
@@ -342,7 +345,7 @@ router.get('/grupos/:id/pdf-oc', async (req, res) => {
   res.setHeader('Content-Disposition', `attachment; filename="oc-${numeroOc}-${(grupo.proveedor || 'proveedor').replace(/[^a-z0-9]+/gi, '-')}.pdf"`);
   doc.pipe(res);
 
-  drawHeader(doc, 'ORDEN DE COMPRA', `N° OC: ${numeroOc}`, ocEmailForLinea(cot?.linea_negocio));
+  drawHeader(doc, 'ORDEN DE COMPRA', `N° OC: ${numeroOc}`, emailForLinea(cot?.linea_negocio));
 
   doc.fontSize(10).fillColor(COLORS.tinta);
   doc.text(`N° Cotización asociada: ${cot ? formatNCot(cot.n_cot ?? cot.id, cot.linea_negocio) : '—'}`, 40, doc.y + 6);
@@ -371,7 +374,7 @@ router.get('/grupos/:id/pdf-oc', async (req, res) => {
   doc.end();
 });
 
-function drawHeader(doc, title, subtitle, email = COMPANY.email) {
+function drawHeader(doc, title, subtitle, email = EMAIL_POR_LINEA.fauna_rd) {
   const logoWidth = 120;
   const logoHeight = logoWidth * LOGO_ASPECT;
   doc.image(LOGO_PATH, 40, 40, { width: logoWidth });
