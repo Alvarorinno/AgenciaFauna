@@ -61,9 +61,9 @@ router.post('/', async (req, res) => {
     ? req.body.estado_cotizacion
     : 'pendiente';
 
-  // Clasificación Fee / Variable: ante la duda (valor ausente o no reconocido) se
-  // clasifica como 'fee' para que se revise manualmente más adelante.
-  const tipoIngreso = ['fee', 'variable'].includes(req.body.tipo_ingreso) ? req.body.tipo_ingreso : 'fee';
+  // Clasificación Fee / Variable: un proyecto nuevo nace como 'variable' (lo habitual);
+  // la encargada lo cambia a 'fee' desde la fila si corresponde.
+  const tipoIngreso = ['fee', 'variable'].includes(req.body.tipo_ingreso) ? req.body.tipo_ingreso : 'variable';
 
   // La línea de negocio se deriva SIEMPRE del usuario autenticado, nunca del body
   // (evita que un 'encargado' cree cotizaciones en la línea de otro).

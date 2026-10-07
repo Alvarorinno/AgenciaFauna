@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
@@ -14,10 +14,44 @@ type Page = 'general' | 'dashboard' | 'cotizaciones' | 'eventos' | 'gestion_prov
 
 function AppContent() {
   const { user } = useAuth();
-  const [page, setPage] = useState<Page>('dashboard');
-  const [linea, setLinea] = useState<LineaNegocio>('fauna_rd');
+  const [page, setPageState] = useState<Page>('dashboard');
+  const [linea, setLineaState] = useState<LineaNegocio>('fauna_rd');
+  // Copia síncrona de page/linea para usarla dentro de los handlers (popstate,
+  // navigate) sin quedar con valores viejos capturados por el closure.
+  const nav = useRef<{ page: Page; linea: LineaNegocio }>({ page: 'dashboard', linea: 'fauna_rd' });
   const [eventosMesPreset, setEventosMesPreset] = useState<{ mes: string; token: number } | null>(null);
   const [cotizacionFocus, setCotizacionFocus] = useState<{ id: number; token: number } | null>(null);
+
+  // La app es una sola página sin rutas: sin esto, "atrás" del navegador salía del
+  // sitio. Cada cambio de sección empuja una entrada al historial, así "atrás" vuelve
+  // a la sección anterior de la app (y "adelante" a la siguiente).
+  function setPage(p: Page) {
+    if (p === nav.current.page) return;
+    nav.current = { ...nav.current, page: p };
+    window.history.pushState({ ...nav.current }, '');
+    setPageState(p);
+  }
+
+  // Cambiar de línea no es un paso de navegación: solo actualiza la entrada actual,
+  // para que al volver a esta sección se recuerde en qué línea estabas.
+  function setLinea(l: LineaNegocio) {
+    nav.current = { ...nav.current, linea: l };
+    window.history.replaceState({ ...nav.current }, '');
+    setLineaState(l);
+  }
+
+  useEffect(() => {
+    window.history.replaceState({ ...nav.current }, '');
+    function onPop(e: PopStateEvent) {
+      const st = e.state as { page: Page; linea: LineaNegocio } | null;
+      if (!st?.page) return;
+      nav.current = { page: st.page, linea: st.linea ?? nav.current.linea };
+      setPageState(st.page);
+      setLineaState(nav.current.linea);
+    }
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
 
   // Click en un mes del gráfico "Ventas por Mes" del dashboard -> ir a Eventos
   // con ese mes ya filtrado.
@@ -38,7 +72,12 @@ function AppContent() {
   // que llega recién tras el login), así que la línea por defecto del usuario se
   // sincroniza acá cuando cambia de sesión.
   useEffect(() => {
-    if (user) setLinea(user.linea_negocio ?? 'fauna_rd');
+    if (user) {
+      const l = user.linea_negocio ?? 'fauna_rd';
+      nav.current = { ...nav.current, linea: l };
+      window.history.replaceState({ ...nav.current }, '');
+      setLineaState(l);
+    }
   }, [user?.id]);
 
   if (!user) return <Login />;
