@@ -5,6 +5,7 @@ import { fileURLToPath } from 'url';
 import { sql } from '../db.js';
 import { authMiddleware } from './auth.js';
 import { withDerived, withItemDerived, withGrupoDerived, recomputeTotales } from '../lib/calc.js';
+import { renderOrdenCompra, OC_DOC_OPTIONS } from '../lib/ocPdf.js';
 
 const router = Router();
 router.use(authMiddleware);
@@ -340,38 +341,35 @@ router.get('/grupos/:id/pdf-oc', async (req, res) => {
   const correlativo = String((Number(grupo.orden) || 0) + 1).padStart(3, '0');
   const numeroOc = `${formatNCot(cot?.n_cot ?? cot?.id ?? '000', cot?.linea_negocio)}-${correlativo}`;
 
-  const doc = new PDFDocument({ size: 'A4', margin: 40 });
+  const doc = new PDFDocument(OC_DOC_OPTIONS);
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader('Content-Disposition', `attachment; filename="oc-${numeroOc}-${(grupo.proveedor || 'proveedor').replace(/[^a-z0-9]+/gi, '-')}.pdf"`);
   doc.pipe(res);
 
-  drawHeader(doc, 'ORDEN DE COMPRA', `N° OC: ${numeroOc}`, emailForLinea(cot?.linea_negocio));
-
-  doc.fontSize(10).fillColor(COLORS.tinta);
-  doc.text(`N° Cotización asociada: ${cot ? formatNCot(cot.n_cot ?? cot.id, cot.linea_negocio) : '—'}`, 40, doc.y + 6);
-  doc.text(`Proyecto: ${cot?.proyecto || '—'}`);
-  doc.text(`Proveedor: ${grupo.proveedor || '—'}`);
-  doc.text(`RUT Proveedor: ${grupo.rut_proveedor || '—'}`);
-  doc.text(`Fecha: ${new Date().toLocaleDateString('es-CL')}`);
-  doc.moveDown(1);
-
-  ensureSpace(doc, 45);
-  sectionHeader(doc, grupo.nombre || 'Detalle');
-
-  tableHeader(doc, ['Descripción', 'Cant.', 'Costo Unit.', 'Subtotal'], [260, 60, 95, 100]);
-
-  let total = 0;
-  for (const it of items) {
-    const vals = [bulletize(it.nombre), String(it.cantidad), fmtCLP(it.unitario_costo), fmtCLP(it.subtotal_costo)];
-    drawTableRow(doc, vals, [260, 60, 95, 100]);
-    total += it.subtotal_costo;
-  }
-
-  ensureSpace(doc, 20);
-  doc.moveDown(0.3);
-  drawOcTotalsFooter(doc, total);
-
-  doc.end();
+  // Los precios de la OC son NETOS (costo del proveedor): el IVA (19%) se suma al
+  // final. El diseño vive en lib/ocPdf.js; acá solo se arman los datos.
+  const neto = items.reduce((acc, it) => acc + it.subtotal_costo, 0);
+  const iva = neto * 0.19;
+  renderOrdenCompra(doc, {
+    empresa: { rut: COMPANY.rut, direccion: COMPANY.direccion },
+    email: emailForLinea(cot?.linea_negocio),
+    numeroOc,
+    nCot: cot ? formatNCot(cot.n_cot ?? cot.id, cot.linea_negocio) : '—',
+    fecha: new Date().toLocaleDateString('es-CL'),
+    proyecto: cot?.proyecto || '—',
+    proveedor: grupo.proveedor || '—',
+    rutProveedor: grupo.rut_proveedor || '—',
+    subtitulo: grupo.nombre || '',
+    rows: items.map(it => ({
+      desc: bulletize(it.nombre),
+      cant: String(it.cantidad),
+      unit: fmtCLP(it.unitario_costo),
+      sub: fmtCLP(it.subtotal_costo)
+    })),
+    neto: fmtCLP(neto),
+    iva: fmtCLP(iva),
+    total: fmtCLP(neto + iva)
+  });
 });
 
 function drawHeader(doc, title, subtitle, email = EMAIL_POR_LINEA.fauna_rd) {
@@ -464,20 +462,6 @@ function drawTotalsFooter(doc, { comisionMonto, comisionPct, totalNeto, iva, tot
     doc.font('Helvetica-Bold').text('Forma de pago: 50% del total anticipado, 50% contra entrega.', 50, boxY + 23, { width: 300 });
     doc.font('Helvetica').fontSize(9).text('Validez de cotización: 15 días.', 50, boxY + 46, { width: 300 });
   });
-}
-
-// Mismo desglose (neto → IVA 19% → total) para la Orden de Compra al proveedor,
-// donde antes solo se mostraba un "TOTAL A PAGAR" en bruto sin dejar claro que
-// los precios unitarios/subtotales de la tabla de arriba son netos.
-function drawOcTotalsFooter(doc, totalNeto) {
-  const iva = totalNeto * 0.19;
-  const totalConIva = totalNeto + iva;
-  const rows = [
-    { label: 'TOTAL NETO', value: fmtCLP(totalNeto), bold: true },
-    { label: 'IVA (19%)', value: fmtCLP(iva) },
-    { label: 'TOTAL', value: fmtCLP(totalConIva), bold: true }
-  ];
-  drawTotalsBox(doc, rows);
 }
 
 function tableHeader(doc, labels, widths) {
