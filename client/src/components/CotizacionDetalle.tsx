@@ -4,7 +4,7 @@ import {
   createGrupo, updateGrupo, deleteGrupo,
   createItem, updateItem, deleteItem,
   getCotizaciones, downloadCotizacionClientePdf, downloadGrupoOcPdf,
-  updateComision, duplicateCotizacion, getProveedores
+  updateComision, updateCondiciones, duplicateCotizacion, getProveedores
 } from '../api';
 import { formatCLP, extractRut, searchNormalize } from '../utils';
 
@@ -32,6 +32,8 @@ export default function CotizacionDetalle({ cotizacion, canEdit, onCotizacionUpd
   const [draftItem, setDraftItem] = useState<Partial<CotizacionItem>>({});
   const [editingComision, setEditingComision] = useState(false);
   const [draftComisionPct, setDraftComisionPct] = useState('');
+  const [editingCondiciones, setEditingCondiciones] = useState(false);
+  const [draftCondiciones, setDraftCondiciones] = useState('');
   // Directorio maestro de proveedores (sección "Proveedores" del menú), usado para
   // sugerir coincidencias mientras se escribe el nombre del proveedor en un grupo
   // y autocompletar su RUT al elegir uno de la lista. Se carga una sola vez, solo
@@ -182,6 +184,25 @@ export default function CotizacionDetalle({ cotizacion, canEdit, onCotizacionUpd
   function startEditComision() {
     setDraftComisionPct('');
     setEditingComision(true);
+  }
+
+  function startEditCondiciones() {
+    setDraftCondiciones(cotizacion.condiciones_pago ?? '');
+    setEditingCondiciones(true);
+  }
+
+  async function saveCondiciones() {
+    setBusy(true);
+    try {
+      await updateCondiciones(cotizacion.id, draftCondiciones);
+      setEditingCondiciones(false);
+      await refresh();
+    } catch (err) {
+      console.error('Error al guardar las condiciones:', err);
+      alert('No se pudieron guardar las condiciones. Intenta de nuevo.');
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function saveComision() {
@@ -440,6 +461,37 @@ export default function CotizacionDetalle({ cotizacion, canEdit, onCotizacionUpd
                 <button onClick={() => setEditingComision(false)} disabled={busy} title="Cancelar" style={iconBtnStyle('#f6e4e6', '#6d2632')}>✕</button>
               </div>
             )}
+            {canEdit && !editingCondiciones && (
+              <button
+                onClick={startEditCondiciones}
+                disabled={busy}
+                title="Texto de condiciones/forma de pago que se imprime en la cotización"
+                style={{ background: '#f1f6ec', color: '#3d6b24', padding: '8px 14px', borderRadius: 7, fontSize: 12.5, fontWeight: 700, border: '1px dashed #7fae5c' }}
+              >
+                {cotizacion.condiciones_pago ? 'Condiciones de pago ✎' : 'Condiciones de pago (estándar)'}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {canEdit && editingCondiciones && (
+        <div style={{ background: '#f1f6ec', padding: '10px 12px', borderRadius: 8, border: '1px dashed #7fae5c', marginBottom: 12 }}>
+          <div style={{ fontSize: 12.5, color: '#3d6b24', fontWeight: 600, marginBottom: 6 }}>
+            Condiciones de pago de esta cotización (se imprimen en el PDF para el cliente). Déjalo vacío para usar el texto estándar.
+          </div>
+          <textarea
+            autoFocus
+            rows={4}
+            style={{ ...textareaStyle, width: '100%', maxWidth: 560 }}
+            value={draftCondiciones}
+            placeholder="Forma de pago: 50% del total anticipado, 50% contra entrega."
+            onChange={e => setDraftCondiciones(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Escape') setEditingCondiciones(false); }}
+          />
+          <div className="flex items-center gap-1.5" style={{ marginTop: 6 }}>
+            <button onClick={saveCondiciones} disabled={busy} title="Guardar" style={iconBtnStyle('#dcecdf', '#1f7a4d')}>✓</button>
+            <button onClick={() => setEditingCondiciones(false)} disabled={busy} title="Cancelar" style={iconBtnStyle('#f6e4e6', '#6d2632')}>✕</button>
           </div>
         </div>
       )}

@@ -80,6 +80,11 @@ export const updateComision = async (cotizacionId: number, comisionPct: number):
   return data;
 };
 
+export const updateCondiciones = async (cotizacionId: number, condiciones: string): Promise<Cotizacion> => {
+  const { data } = await api.put(`/detalle/cotizaciones/${cotizacionId}/condiciones`, { condiciones_pago: condiciones });
+  return data;
+};
+
 async function downloadPdf(url: string, fallbackName: string) {
   const { data, headers } = await api.get(url, { responseType: 'blob' });
   const disposition: string | undefined = headers['content-disposition'];

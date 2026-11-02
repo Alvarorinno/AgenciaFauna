@@ -56,6 +56,10 @@ async function runInit() {
   await sql`ALTER TABLE cotizaciones ADD COLUMN IF NOT EXISTS comision_pct NUMERIC DEFAULT 0`;
   await sql`ALTER TABLE cotizaciones ADD COLUMN IF NOT EXISTS comision_monto NUMERIC DEFAULT 0`;
 
+  // Condiciones de pago/proyecto de la cotización (texto libre que se imprime en el
+  // PDF para el cliente). NULL = se usa el texto por defecto (ver detalle.js).
+  await sql`ALTER TABLE cotizaciones ADD COLUMN IF NOT EXISTS condiciones_pago TEXT`;
+
   // Clasificación Fee / Variable de cada cotización. Se agrega con DEFAULT 'fee' tanto
   // para filas nuevas como para las ya existentes (ADD COLUMN con DEFAULT rellena las
   // filas históricas con ese valor): ante la duda se clasifican como 'fee' para revisión

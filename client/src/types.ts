@@ -59,6 +59,8 @@ export interface Cotizacion {
   costo_real: number;
   comision_pct: number;
   comision_monto: number;
+  // Condiciones de pago/proyecto impresas en la cotización (null = texto por defecto)
+  condiciones_pago?: string | null;
   utilidad: number;
   pct_utilidad: number;
   factura: string | null;

@@ -1,23 +1,13 @@
 import { Router } from 'express';
 import PDFDocument from 'pdfkit';
-import path from 'path';
-import { fileURLToPath } from 'url';
 import { sql } from '../db.js';
 import { authMiddleware } from './auth.js';
 import { withDerived, withItemDerived, withGrupoDerived, recomputeTotales } from '../lib/calc.js';
 import { renderOrdenCompra, OC_DOC_OPTIONS } from '../lib/ocPdf.js';
+import { renderCotizacion, COT_DOC_OPTIONS } from '../lib/cotPdf.js';
 
 const router = Router();
 router.use(authMiddleware);
-
-// Logo en PDF (cotización cliente y OC), mismo archivo para ambas líneas de
-// negocio (Fauna RD y Agencia): la empresa emisora (Agencia Fauna SpA) es la
-// misma en los dos casos, no se discrimina por línea. Fondo ya recortado a
-// transparente y a su bounding box real (1542x496 px) para poder ubicarlo con
-// un ancho fijo y derivar el alto manteniendo la proporción.
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const LOGO_PATH = path.join(__dirname, '../assets/logo-fauna.png');
-const LOGO_ASPECT = 496 / 1542;
 
 // Solo 'encargado' puede crear/editar/eliminar el detalle de proveedores
 // (mismo criterio que ENCARGADO_FIELDS en routes/cotizaciones.js).
@@ -47,7 +37,9 @@ async function checkLineaCotizacion(req, res, cotizacionId) {
 const COMPANY = {
   razonSocial: 'Agencia Fauna SpA',
   rut: '77.897.540-8',
-  direccion: 'Sebastian Piñera 548, Las Condes'
+  giro: 'Otras actividades especializadas de diseño N.C.P',
+  direccion: 'Sebastian Piñera 548, Las Condes', // versión corta (Orden de Compra)
+  direccionCompleta: 'Av. Presidente Sebastián Piñera Echeñique #548, Las Condes' // Cotización
 };
 
 // Correo de contacto que se muestra tanto en la cotización como en la Orden de
@@ -61,7 +53,21 @@ function emailForLinea(linea) {
   return EMAIL_POR_LINEA[linea] || EMAIL_POR_LINEA.fauna_rd;
 }
 
-const COLORS = { tinta: '#12192b', papel: '#f7f4ee', laton: '#c8a24a', burdeos: '#6d2632' };
+// Ejecutiva a cargo que se muestra en la cotización según la línea de negocio.
+const EJECUTIVA_POR_LINEA = {
+  fauna_rd: { nombre: 'Francisca Sierralta', cargo: 'Directora Omnicanal', email: EMAIL_POR_LINEA.fauna_rd },
+  agencia: { nombre: 'Agustina García', cargo: 'Directora de Cuentas', email: EMAIL_POR_LINEA.agencia }
+};
+
+// Condiciones por defecto de la cotización (se puede reemplazar por cotización con
+// el campo condiciones_pago: no a todos los clientes se les cobra igual).
+const CONDICIONES_DEFAULT = 'Forma de pago: 50% del total anticipado, 50% contra entrega.';
+const VALIDEZ_COTIZACION_DIAS = 30;
+
+// dd-mm-aaaa en hora de Chile (el servidor corre en UTC).
+function fmtFecha(date) {
+  return new Date(date).toLocaleDateString('es-CL', { timeZone: 'America/Santiago' });
+}
 
 function fmtCLP(n) {
   return '$ ' + Math.round(Number(n) || 0).toLocaleString('es-CL');
@@ -235,6 +241,23 @@ router.put('/cotizaciones/:id/comision', requireEncargado, async (req, res) => {
   await sql`UPDATE cotizaciones SET comision_pct = ${pct}, updated_at = now() WHERE id = ${id}`;
   await recomputeTotales(id);
 
+  res.json(await cotizacionCompleta(id));
+});
+
+// Condiciones de pago/proyecto que se imprimen en la cotización para el cliente.
+// Texto vacío = vuelve al texto por defecto.
+router.put('/cotizaciones/:id/condiciones', requireEncargado, async (req, res) => {
+  const id = Number(req.params.id);
+  const linea = await checkLineaCotizacion(req, res, id);
+  if (linea === null) return;
+
+  const texto = String(req.body.condiciones_pago ?? '').trim().slice(0, 2000);
+  await sql`UPDATE cotizaciones SET condiciones_pago = ${texto || null}, updated_at = now() WHERE id = ${id}`;
+  res.json(await cotizacionCompleta(id));
+});
+
+// Cotización con sus grupos e ítems, en el mismo formato que devuelve el GET.
+async function cotizacionCompleta(id) {
   const cotRows = await sql`SELECT * FROM cotizaciones WHERE id = ${id}`;
   const grupos = await sql`SELECT * FROM cotizacion_grupos WHERE cotizacion_id = ${id} ORDER BY orden, id`;
   const items = grupos.length
@@ -243,9 +266,8 @@ router.put('/cotizaciones/:id/comision', requireEncargado, async (req, res) => {
   const itemsByGrupo = {};
   for (const it of items) (itemsByGrupo[it.grupo_id] ??= []).push(withItemDerived(it));
   const gruposOut = grupos.map(g => withGrupoDerived(g, itemsByGrupo[g.id] || []));
-
-  res.json(withDerived({ ...cotRows[0], grupos: gruposOut, tiene_detalle: gruposOut.length > 0 }));
-});
+  return withDerived({ ...cotRows[0], grupos: gruposOut, tiene_detalle: gruposOut.length > 0 });
+}
 
 // ================= PDFs =================
 // Ambos PDFs son de solo lectura para cualquier rol autenticado (mismo criterio
@@ -268,58 +290,62 @@ router.get('/cotizaciones/:id/pdf-cliente', async (req, res) => {
   const itemsByGrupo = {};
   for (const it of items) (itemsByGrupo[it.grupo_id] ??= []).push(withItemDerived(it));
 
-  const doc = new PDFDocument({ size: 'A4', margin: 40 });
+  const numero = formatNCot(cot.n_cot ?? cot.id, cot.linea_negocio);
+  const doc = new PDFDocument(COT_DOC_OPTIONS);
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader('Content-Disposition', `attachment; filename="cotizacion-${formatNCot(cot.n_cot || cot.id, cot.linea_negocio)}.pdf"`);
   doc.pipe(res);
 
-  drawHeader(doc, 'COTIZACIÓN', [
-    `N° Cotización: ${formatNCot(cot.n_cot ?? cot.id, cot.linea_negocio)}`,
-    `Cliente: ${cot.cliente || '—'}`,
-    `Fecha: ${new Date().toLocaleDateString('es-CL')}`
-  ], emailForLinea(cot.linea_negocio));
-
-  doc.fontSize(10).fillColor(COLORS.tinta);
-  doc.text(`Proyecto: ${cot.proyecto || '—'}`, 40, doc.y + 6);
-  if (cot.descripcion) doc.text(`Descripción: ${cot.descripcion}`);
-  doc.moveDown(1);
-
+  // Solo precios de venta: nunca costo, utilidad ni nombre del proveedor.
   let granTotal = 0;
+  const gruposPdf = [];
   for (const g of grupos) {
     const gItems = itemsByGrupo[g.id] || [];
     if (gItems.length === 0) continue;
-
-    ensureSpace(doc, 45);
-    sectionHeader(doc, g.nombre);
-
-    tableHeader(doc, ['Descripción', 'Cant.', 'Unitario', 'Subtotal'], [260, 60, 95, 100]);
-
-    let gTotal = 0;
-    for (const it of gItems) {
-      const vals = [bulletize(it.nombre), String(it.cantidad), fmtCLP(it.unitario_cliente), fmtCLP(it.subtotal_cliente)];
-      drawTableRow(doc, vals, [260, 60, 95, 100]);
-      gTotal += it.subtotal_cliente;
-    }
+    const gTotal = gItems.reduce((acc, it) => acc + it.subtotal_cliente, 0);
     granTotal += gTotal;
-
-    doc.moveDown(1);
+    gruposPdf.push({
+      nombre: g.nombre,
+      subtotal: fmtCLP(gTotal),
+      rows: gItems.map((it, i) => ({
+        num: `${gruposPdf.length + 1}.${i + 1}`,
+        desc: bulletize(it.nombre),
+        cant: String(it.cantidad),
+        unit: fmtCLP(it.unitario_cliente),
+        sub: fmtCLP(it.subtotal_cliente)
+      }))
+    });
   }
 
-  const comisionMonto = Number(cot.comision_monto) || 0;
+  const comisionMonto = granTotal ? Number(cot.comision_monto) || 0 : 0;
   const subtotalNeto = granTotal || cot.costo_cliente;
-  const totalNeto = subtotalNeto + (granTotal ? comisionMonto : 0);
+  const totalNeto = subtotalNeto + comisionMonto;
   const iva = totalNeto * 0.19;
-  const totalClp = totalNeto + iva;
 
-  drawTotalsFooter(doc, {
-    comisionMonto: granTotal ? comisionMonto : 0,
-    comisionPct: Number(cot.comision_pct) || 0,
-    totalNeto,
-    iva,
-    totalClp
+  // Fechas: emisión = cuando se creó la cotización; impresión = esta descarga
+  // (así queda trazabilidad de qué versión se entregó y cuándo).
+  const emision = new Date(cot.created_at);
+  const vencimiento = new Date(emision.getTime() + VALIDEZ_COTIZACION_DIAS * 24 * 60 * 60 * 1000);
+
+  renderCotizacion(doc, {
+    empresa: { rut: COMPANY.rut, giro: COMPANY.giro, direccion: COMPANY.direccionCompleta },
+    ejecutiva: EJECUTIVA_POR_LINEA[cot.linea_negocio] || EJECUTIVA_POR_LINEA.fauna_rd,
+    numero,
+    emision: fmtFecha(emision),
+    vencimiento: fmtFecha(vencimiento),
+    impresion: fmtFecha(new Date()),
+    cliente: cot.cliente || '—',
+    proyecto: cot.proyecto || '—',
+    descripcion: cot.descripcion || '',
+    grupos: gruposPdf,
+    subtotalNeto: fmtCLP(subtotalNeto),
+    comision: comisionMonto > 0 ? { label: `COMISIÓN AGENCIA ${Number(cot.comision_pct) || 0}%`, value: fmtCLP(comisionMonto) } : null,
+    totalNeto: fmtCLP(totalNeto),
+    iva: fmtCLP(iva),
+    total: fmtCLP(totalNeto + iva),
+    condiciones: (cot.condiciones_pago || '').trim() || CONDICIONES_DEFAULT,
+    validezDias: VALIDEZ_COTIZACION_DIAS
   });
-
-  doc.end();
 });
 
 // Orden de compra para un proveedor específico: SOLO ese grupo, con los precios de
@@ -372,112 +398,6 @@ router.get('/grupos/:id/pdf-oc', async (req, res) => {
   });
 });
 
-function drawHeader(doc, title, subtitle, email = EMAIL_POR_LINEA.fauna_rd) {
-  const logoWidth = 120;
-  const logoHeight = logoWidth * LOGO_ASPECT;
-  doc.image(LOGO_PATH, 40, 40, { width: logoWidth });
-  doc.font('Helvetica').fontSize(8.5).fillColor('#5b5f6b');
-  doc.text(COMPANY.razonSocial, 40, 40 + logoHeight + 8);
-  doc.text(`RUT: ${COMPANY.rut}`);
-  doc.text(COMPANY.direccion);
-  doc.text(email);
-  const leftBottomY = doc.y; // fin del bloque de datos de la empresa (columna izquierda)
-
-  doc.fontSize(18).fillColor(COLORS.laton).font('Helvetica-Bold').text(title, 40, 40, { width: 515, align: 'right' });
-  // subtitle puede ser un string (una línea, ej. OC) o un array de líneas
-  // (ej. cotización cliente: N° Cotización / Cliente / Fecha, apiladas debajo del título).
-  const subtitleLines = Array.isArray(subtitle) ? subtitle : (subtitle ? [subtitle] : []);
-  if (subtitleLines.length) {
-    doc.fontSize(10).fillColor(COLORS.tinta).font('Helvetica-Bold');
-    for (const line of subtitleLines) {
-      doc.text(line, 40, doc.y + 2, { width: 515, align: 'right' });
-    }
-  }
-  doc.font('Helvetica');
-
-  // doc.text(..., 40, 40, ...) reposiciona el cursor en base a SU propia altura, que puede
-  // quedar más arriba que el bloque de la izquierda (5 líneas). Sin este máximo la línea
-  // separadora se dibuja encima del último renglón (el email) en vez de debajo de todo.
-  doc.y = Math.max(doc.y, leftBottomY);
-  doc.moveDown(1.5);
-  doc.moveTo(40, doc.y).lineTo(555, doc.y).strokeColor('#dfd8c8').lineWidth(1).stroke();
-  doc.moveDown(0.8);
-}
-
-// Encabezado de sección (nombre de proveedor/grupo). Antes se dibujaba una barra
-// sólida negra por cada grupo, lo que quedaba desordenado apenas había más de un
-// proveedor. Ahora es solo texto en negrita con una línea fina debajo — la única
-// barra de color sólido del documento queda reservada para el encabezado general.
-function sectionHeader(doc, label) {
-  doc.fontSize(11.5).fillColor(COLORS.tinta).font('Helvetica-Bold').text(label || 'Sin nombre', 40, doc.y, { width: 515 });
-  doc.font('Helvetica');
-  doc.moveDown(0.3);
-  doc.moveTo(40, doc.y).lineTo(555, doc.y).strokeColor(COLORS.laton).lineWidth(1.2).stroke();
-  doc.moveDown(0.5);
-}
-
-// Caja gris de totales compartida por la cotización cliente y la OC: dibuja las
-// filas label/monto alineadas a la derecha, y opcionalmente una nota a la
-// izquierda (ej. forma de pago) mediante drawLeftContent(boxY). El alto de la
-// caja se ajusta a la cantidad de filas, con un mínimo para que la nota (cuando
-// la hay) siempre quepa completa.
-function drawTotalsBox(doc, rows, drawLeftContent) {
-  const rowH = 15;
-  const boxHeight = Math.max(rows.length * rowH, 62) + 16;
-
-  ensureSpace(doc, boxHeight + 10);
-  const boxY = doc.y;
-  doc.rect(40, boxY, 515, boxHeight).fill('#c7c7c7');
-
-  if (drawLeftContent) drawLeftContent(boxY);
-
-  // Columna derecha: totales, alineados en dos sub-columnas (label / monto)
-  let rowY = boxY + 10;
-  for (const r of rows) {
-    doc.font(r.bold ? 'Helvetica-Bold' : 'Helvetica').fontSize(r.bold ? 11 : 9.5).fillColor('#12192b');
-    doc.text(r.label, 300, rowY, { width: 140, align: 'right' });
-    doc.text(r.value, 445, rowY, { width: 100, align: 'right' });
-    rowY += rowH;
-  }
-
-  doc.font('Helvetica');
-  doc.y = boxY + boxHeight + 10;
-}
-
-// Bloque final de la cotización cliente: nota de forma de pago/validez a la
-// izquierda + desglose de totales (neto, comisión, IVA, total con IVA) a la
-// derecha, sobre un fondo gris — reemplaza la línea simple de "TOTAL COTIZACIÓN".
-// Deja explícito que los montos de arriba (por ítem y subtotal por proveedor)
-// son NETOS, y que el IVA (19%) recién se suma acá al final.
-function drawTotalsFooter(doc, { comisionMonto, comisionPct, totalNeto, iva, totalClp }) {
-  const rows = [
-    ...(comisionMonto > 0 ? [{ label: `COMISIÓN AGENCIA ${comisionPct}%`, value: fmtCLP(comisionMonto) }] : []),
-    { label: 'TOTAL NETO', value: fmtCLP(totalNeto), bold: true },
-    { label: 'IVA (19%)', value: fmtCLP(iva) },
-    { label: 'TOTAL CLP', value: fmtCLP(totalClp), bold: true }
-  ];
-  drawTotalsBox(doc, rows, boxY => {
-    doc.fillColor('#12192b');
-    doc.fontSize(9).font('Helvetica-Bold').text('Nota', 50, boxY + 10, { width: 300 });
-    doc.font('Helvetica-Bold').text('Forma de pago: 50% del total anticipado, 50% contra entrega.', 50, boxY + 23, { width: 300 });
-    doc.font('Helvetica').fontSize(9).text('Validez de cotización: 15 días.', 50, boxY + 46, { width: 300 });
-  });
-}
-
-function tableHeader(doc, labels, widths) {
-  const y = doc.y;
-  doc.fontSize(8.5).fillColor('#5b5f6b').font('Helvetica-Bold');
-  let x = 40;
-  labels.forEach((l, i) => {
-    doc.text(l, x, y, { width: widths[i] - 4 });
-    x += widths[i];
-  });
-  doc.font('Helvetica');
-  doc.moveDown(0.7);
-  doc.moveTo(40, doc.y).lineTo(555, doc.y).strokeColor('#efe9df').lineWidth(0.5).stroke();
-  doc.moveDown(0.4);
-}
-
 // Si la descripción de un ítem tiene varias líneas (el encargado presionó
 // Enter al escribirla), se muestra en el PDF como lista con viñetas — mucho
 // más legible que el párrafo corrido de antes. Una descripción de una sola
@@ -487,32 +407,6 @@ function bulletize(text) {
   const lines = String(text || '').split('\n').map(l => l.trim()).filter(Boolean);
   if (lines.length <= 1) return text || '';
   return lines.map(l => `•  ${l}`).join('\n');
-}
-
-// Dibuja una fila de ítem (usada por la cotización cliente y por la OC) y
-// avanza el cursor según el alto REAL del texto renderado. Antes se avanzaba
-// un alto fijo (moveDown(0.9)) sin importar cuántas líneas ocupara la
-// descripción al hacer wrap dentro de su columna: con un ítem largo o muchos
-// ítems, la fila siguiente (o el cuadro de totales) se dibujaba encima del
-// texto todavía sin terminar, superponiéndose e ilegible.
-function drawTableRow(doc, vals, cols) {
-  doc.font('Helvetica').fontSize(9);
-  const rowHeight = Math.max(...vals.map((v, i) => doc.heightOfString(String(v ?? ''), { width: cols[i] - 4 }))) + 8;
-  ensureSpace(doc, rowHeight);
-  const y = doc.y;
-  doc.fillColor(COLORS.tinta);
-  let x = 40;
-  vals.forEach((v, i) => {
-    doc.text(String(v ?? ''), x, y, { width: cols[i] - 4 });
-    x += cols[i];
-  });
-  doc.y = y + rowHeight;
-}
-
-function ensureSpace(doc, needed) {
-  if (doc.y + needed > doc.page.height - doc.page.margins.bottom) {
-    doc.addPage();
-  }
 }
 
 export default router;

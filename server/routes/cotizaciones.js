@@ -125,11 +125,11 @@ router.post('/:id/duplicate', async (req, res) => {
   const [nueva] = await sql`
     INSERT INTO cotizaciones (
       n_cot, mes, cliente, proyecto, descripcion, costo_cliente, costo_real,
-      comision_pct, comision_monto, estado_pago, estado_cotizacion, linea_negocio, tipo_ingreso
+      comision_pct, comision_monto, estado_pago, estado_cotizacion, linea_negocio, tipo_ingreso, condiciones_pago
     )
     VALUES (
       ${nCot}, ${original.mes}, ${original.cliente}, ${original.proyecto}, ${original.descripcion},
-      ${original.costo_cliente || 0}, ${original.costo_real || 0}, ${original.comision_pct || 0}, 0, 'na', 'pendiente', ${original.linea_negocio}, ${original.tipo_ingreso}
+      ${original.costo_cliente || 0}, ${original.costo_real || 0}, ${original.comision_pct || 0}, 0, 'na', 'pendiente', ${original.linea_negocio}, ${original.tipo_ingreso}, ${original.condiciones_pago ?? null}
     )
     RETURNING *
   `;
