@@ -204,11 +204,15 @@ function drawFirstPageHead(doc, d) {
   return sy + 20;
 }
 
+// Los montos van alineados a la derecha y terminan en el mismo borde (NUM_RIGHT)
+// que usan los totales de abajo, para que toda la columna de números quede
+// pareja de la tabla a la pastilla "TOTAL A PAGAR".
+const NUM_RIGHT = 545;
 const COLS = [
   { key: 'desc', x: 50, w: 236, align: 'left', label: 'Descripción' },
   { key: 'cant', x: 291, w: 40, align: 'center', label: 'Cant.' },
-  { key: 'unit', x: 369, w: 105, align: 'left', label: 'Costo Unit.' },
-  { key: 'sub', x: 487, w: 72, align: 'left', label: 'Subtotal' }
+  { key: 'unit', x: 340, w: 105, align: 'right', label: 'Costo Unit.' },
+  { key: 'sub', x: NUM_RIGHT - 90, w: 90, align: 'right', label: 'Subtotal' }
 ];
 
 function drawTableHeader(doc, y) {
@@ -244,37 +248,44 @@ function drawRow(doc, row, y, idx, h) {
   }
 }
 
-// Totales: Total neto → IVA (19%) → pastilla "TOTAL A PAGAR".
+// Totales: tres pastillas apiladas con el mismo ancho — TOTAL NETO y IVA (19%)
+// con borde, y "TOTAL A PAGAR" con el extremo lima. Todos los montos terminan en
+// NUM_RIGHT, igual que la columna Subtotal de la tabla.
 function drawTotals(doc, y, d) {
-  const need = 100;
-  if (y + need > OC.bottom) {
+  const smallH = 28;
+  const bigH = 42;
+  const gap = 8;
+  if (y + smallH * 2 + gap * 2 + bigH > OC.bottom) {
     doc.addPage();
     y = OC.contentTop;
   }
-  y += 4;
-  [['Total neto', d.neto], ['IVA (19%)', d.iva]].forEach(([label, value]) => {
-    doc.font(OC.font).fontSize(9.5).fillColor(OC.sub).text(label, 330, y, { width: 120, align: 'right', lineBreak: false });
-    doc.font(OC.font).fontSize(10).fillColor(OC.ink).text(value, 455, y, { width: 106, align: 'right', lineBreak: false });
-    y += 16;
-  });
-  y += 8;
 
-  const h = 42;
   doc.font(OC.font).fontSize(8.5);
-  const label = 'TOTAL A PAGAR:';
-  const lw = doc.widthOfString(label, { characterSpacing: 2.5 });
+  const labW = l => doc.widthOfString(l, { characterSpacing: 2.5 });
+  const lw = labW('TOTAL A PAGAR:');
   doc.font(OC.bold).fontSize(17);
   const vw = doc.widthOfString(d.total);
   const limeW = Math.max(150, vw + 44);
   const limeX = OC.X1 - limeW;
   const outlineX = limeX - lw - 30;
-  pill(doc, outlineX, y, limeX + limeW / 2 - outlineX, h, { stroke: OC.line });
+
+  [['TOTAL NETO', d.neto], ['IVA (19%)', d.iva]].forEach(([label, value]) => {
+    pill(doc, outlineX, y, OC.X1 - outlineX, smallH, { stroke: OC.line });
+    doc.font(OC.font).fontSize(8.5).fillColor(OC.ink);
+    doc.text(label, outlineX + 22, capY(y, smallH, 8.5), { characterSpacing: 2.5, lineBreak: false });
+    doc.font(OC.font).fontSize(10.5).fillColor(OC.ink);
+    doc.text(value, NUM_RIGHT - 120, capY(y, smallH, 10.5), { width: 120, align: 'right', lineBreak: false });
+    y += smallH + gap;
+  });
+  y += 2;
+
+  pill(doc, outlineX, y, limeX + limeW / 2 - outlineX, bigH, { stroke: OC.line });
   doc.font(OC.font).fontSize(8.5).fillColor(OC.ink);
-  doc.text(label, outlineX + 22, capY(y, h, 8.5), { characterSpacing: 2.5, lineBreak: false });
-  pill(doc, limeX, y, limeW, h, { fill: OC.lime });
+  doc.text('TOTAL A PAGAR:', outlineX + 22, capY(y, bigH, 8.5), { characterSpacing: 2.5, lineBreak: false });
+  pill(doc, limeX, y, limeW, bigH, { fill: OC.lime });
   doc.font(OC.bold).fontSize(17).fillColor(OC.ink);
-  doc.text(d.total, limeX, capY(y, h, 17), { width: limeW, align: 'center', lineBreak: false });
-  return y + h;
+  doc.text(d.total, NUM_RIGHT - 140, capY(y, bigH, 17), { width: 140, align: 'right', lineBreak: false });
+  return y + bigH;
 }
 
 /**
