@@ -4,7 +4,7 @@
 // formateados (montos como texto), sin tocar la base de datos. Así se puede
 // probar localmente con datos de ejemplo. La base visual (encabezado de marca,
 // pie, pastillas) está en pdfBrand.js y la comparte con la cotización.
-import { DOC_OPTIONS, B as OC, capY, pill, drawChrome, numberPagesAndEnd } from './pdfBrand.js';
+import { DOC_OPTIONS, B as OC, capY, pill, drawChrome, numberPagesAndEnd, setupBrandFonts } from './pdfBrand.js';
 
 export const OC_DOC_OPTIONS = DOC_OPTIONS;
 
@@ -189,6 +189,7 @@ function drawTotals(doc, y, d) {
  *            (montos ya formateados como texto)
  */
 export function renderOrdenCompra(doc, d) {
+  setupBrandFonts(doc);
   drawChrome(doc, bandOf(d));
   doc.on('pageAdded', () => drawChrome(doc, bandOf(d)));
 

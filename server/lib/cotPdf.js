@@ -4,24 +4,46 @@
 //
 // Módulo puro: recibe un PDFDocument creado con COT_DOC_OPTIONS y los datos ya
 // formateados (montos y fechas como texto), sin tocar la base de datos.
-import { DOC_OPTIONS, B, capY, pill, drawChrome, numberPagesAndEnd } from './pdfBrand.js';
+import { DOC_OPTIONS, B, capY, pill, drawChrome, numberPagesAndEnd, setupBrandFonts } from './pdfBrand.js';
 
 export const COT_DOC_OPTIONS = DOC_OPTIONS;
 
 const NUM_RIGHT = 545; // borde derecho común de todos los montos (tabla y totales)
 const BAND_COLOR = '#E8FAB8'; // banda de cada categoría (verde lima suave)
 
+// Parte `text` en líneas de a lo más `maxW` puntos con la tipografía/tamaño actuales.
+function wrapLine(doc, text, maxW) {
+  const out = [];
+  let cur = '';
+  for (const w of text.split(' ')) {
+    const next = cur ? `${cur} ${w}` : w;
+    if (cur && doc.widthOfString(next) > maxW) {
+      out.push(cur);
+      cur = w;
+    } else {
+      cur = next;
+    }
+  }
+  if (cur) out.push(cur);
+  return out;
+}
+
 // Texto a la derecha del divisor del encabezado de marca: razón social, RUT, giro
-// y dirección (la dirección larga se parte en dos líneas para no salirse de la hoja).
-function bandOf(d) {
-  const dir = d.empresa.direccion;
-  const cut = dir.lastIndexOf(', ');
-  const dirLines = cut > 0 ? [dir.slice(0, cut + 1), dir.slice(cut + 2)] : [dir];
+// y dirección. Se parten en líneas angostas (≈130 pt) para que no pasen por encima
+// de las burbujas de la esquina superior derecha.
+function bandOf(doc, d) {
+  const size = 7.2;
+  doc.font(B.font).fontSize(size);
   return {
-    lines: ['Agencia Fauna SpA', `RUT: ${d.empresa.rut}`, d.empresa.giro, ...dirLines],
-    size: 7.2,
-    step: 9.6,
-    top: 60
+    lines: [
+      'Agencia Fauna SpA',
+      `RUT: ${d.empresa.rut}`,
+      ...wrapLine(doc, d.empresa.giro, 130),
+      ...wrapLine(doc, d.empresa.direccion, 130)
+    ],
+    size,
+    step: 9,
+    top: 58
   };
 }
 
@@ -246,8 +268,9 @@ function drawClosing(doc, y, d) {
  * } (montos y fechas ya formateados como texto)
  */
 export function renderCotizacion(doc, d) {
-  drawChrome(doc, bandOf(d));
-  doc.on('pageAdded', () => drawChrome(doc, bandOf(d)));
+  setupBrandFonts(doc);
+  drawChrome(doc, bandOf(doc, d));
+  doc.on('pageAdded', () => drawChrome(doc, bandOf(doc, d)));
 
   let y = drawFirstPageHead(doc, d);
 

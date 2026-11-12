@@ -11,3 +11,6 @@ server/data.db-wal
 .DS_Store
 .vercel
 .env*
+
+# Fuente comercial (Geomanist): no subir a un repositorio público
+server/assets/fonts/
