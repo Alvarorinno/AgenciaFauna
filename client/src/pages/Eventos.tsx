@@ -1,9 +1,9 @@
-import { Fragment, useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { getCotizaciones, updateCotizacion, deleteCotizacion } from '../api';
 import type { Cotizacion, EstadoPago, LineaNegocio, TipoIngreso } from '../types';
 import { MESES } from '../types';
-import { formatCLP, capitalize, formatNCot, searchNormalize } from '../utils';
+import { formatCLP, capitalize, formatNCot, searchNormalize, sortByNCotDesc } from '../utils';
 import CotizacionDetalle from '../components/CotizacionDetalle';
 import SearchInput from '../components/SearchInput';
 
@@ -43,6 +43,8 @@ export default function Eventos({ linea, presetMes, onPresetConsumed, onDuplicat
   // en cada render contra row.costo_cliente (que patchRow va mutando con cada tecla),
   // el input desaparecía apenas se tipeaba el primer dígito distinto de cero.
   const [costoClienteEditable, setCostoClienteEditable] = useState<Set<number>>(new Set());
+  // N° de cotización con el que se ordena cada fila mientras se edita (ver sortByNCotDesc).
+  const frozenNCot = useRef<Record<number, number>>({});
 
   // Al llegar desde el gráfico "Ventas por Mes" del dashboard, se preselecciona
   // el mes clickeado. El `token` cambia en cada click (aunque sea el mismo mes),
@@ -105,10 +107,9 @@ export default function Eventos({ linea, presetMes, onPresetConsumed, onDuplicat
     return haystack.includes(searchTerm);
   };
 
-  // Orden de la grilla: por mes (calendario, no alfabético — usa el índice en
-  // MESES) y dentro de cada mes por N° de cotización, para que los eventos/
-  // proyectos de RD y Agencia se lean en el orden que ocurren en el año.
-  const filteredRows = rows
+  // Orden de la grilla: más reciente arriba, por N° de cotización descendente (el más
+  // alto se asume el más nuevo).
+  const filteredRows = sortByNCotDesc(rows
     .filter(r =>
       (filters.mes === 'todos' || r.mes === filters.mes) &&
       (filters.cliente === 'todos' || r.cliente === filters.cliente) &&
@@ -116,8 +117,7 @@ export default function Eventos({ linea, presetMes, onPresetConsumed, onDuplicat
       (filters.tipoIngreso === 'todos' || r.tipo_ingreso === filters.tipoIngreso) &&
       (filters.facturado === 'todos' || (filters.facturado === 'facturado' ? tieneFactura(r) : !tieneFactura(r))) &&
       matchesSearch(r)
-    )
-    .sort((a, b) => (MESES.indexOf(a.mes) - MESES.indexOf(b.mes)) || (Number(a.n_cot) - Number(b.n_cot)));
+    ), frozenNCot.current);
 
   // Totales de la sección "Calculado" para las filas visibles (respeta los filtros activos).
   const totalCostoClienteFiltrado = filteredRows.reduce((sum, r) => sum + (Number(r.costo_cliente) || 0), 0);
@@ -147,6 +147,8 @@ export default function Eventos({ linea, presetMes, onPresetConsumed, onDuplicat
         return next;
       });
     }
+    if (turningOn) frozenNCot.current[row.id] = Number(row.n_cot);
+    else delete frozenNCot.current[row.id];
     patchRow(row.id, { editing: turningOn });
   }
 
@@ -159,6 +161,7 @@ export default function Eventos({ linea, presetMes, onPresetConsumed, onDuplicat
 
     try {
       const updated = await updateCotizacion(row.id, payload);
+      delete frozenNCot.current[row.id];
       setRows(prev => prev.map(r => r.id === row.id ? { ...updated, editing: false } : r));
     } catch {
       alert('No se pudo guardar la cotización.');

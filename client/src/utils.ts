@@ -70,3 +70,12 @@ function findRut(text: string): string {
 export function extractRut(proveedor: Proveedor): string {
   return findRut(proveedor.datos_empresa) || findRut(proveedor.cuenta);
 }
+
+// Orden de las listas de cotizaciones y proyectos: N° de cotización descendente (el
+// más alto = el más nuevo, arriba); a igual N°, el id más reciente primero.
+// `frozen` fija el N° con el que se ordena una fila mientras se está editando, para que
+// no salte de lugar a cada tecla al cambiar su N° de cotización.
+export function sortByNCotDesc<T extends { id: number; n_cot: number | null }>(rows: T[], frozen: Record<number, number> = {}): T[] {
+  const key = (r: T) => Number(frozen[r.id] ?? r.n_cot) || 0;
+  return [...rows].sort((a, b) => key(b) - key(a) || b.id - a.id);
+}

@@ -1,9 +1,9 @@
-import { Fragment, useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { getCotizaciones, createCotizacion, updateCotizacion, deleteCotizacion } from '../api';
 import type { Cotizacion, EstadoCotizacion, LineaNegocio, TipoIngreso } from '../types';
 import { MESES } from '../types';
-import { formatCLP, capitalize, formatNCot, searchNormalize } from '../utils';
+import { formatCLP, capitalize, formatNCot, searchNormalize, sortByNCotDesc } from '../utils';
 import CotizacionDetalle from '../components/CotizacionDetalle';
 import SearchInput from '../components/SearchInput';
 
@@ -44,6 +44,8 @@ export default function Cotizaciones({ linea, focusCotizacion, onFocusConsumed }
   // en cada render contra row.costo_cliente (que patchRow va mutando con cada tecla),
   // el input desaparecía apenas se tipeaba el primer dígito distinto de cero.
   const [costoClienteEditable, setCostoClienteEditable] = useState<Set<number>>(new Set());
+  // N° de cotización con el que se ordena cada fila mientras se edita (ver sortByNCotDesc).
+  const frozenNCot = useRef<Record<number, number>>({});
 
   function toggleExpanded(id: number) {
     setExpanded(prev => {
@@ -93,9 +95,13 @@ export default function Cotizaciones({ linea, focusCotizacion, onFocusConsumed }
 
   // Split del pipeline: la vista "pendientes" (normal) y la vista "rechazadas"
   // (sección aparte, misma estructura) nunca se mezclan entre sí.
+  // Excepción: si lo buscado lleva un número (ej. "1113" o "AF-1113") se busca en todo
+  // el pipeline — abiertas y rechazadas juntas — sin tener que saber en qué vista está.
+  // Cada fila muestra su estado (badge) y sus acciones según su propio estado.
+  const searchAcrossAll = /\d/.test(filters.search);
   const baseRows = useMemo(
-    () => rows.filter(r => r.estado_cotizacion === (view === 'rechazadas' ? 'rechazado' : 'pendiente')),
-    [rows, view]
+    () => rows.filter(r => searchAcrossAll || r.estado_cotizacion === (view === 'rechazadas' ? 'rechazado' : 'pendiente')),
+    [rows, view, searchAcrossAll]
   );
   const rechazadasCount = useMemo(() => rows.filter(r => r.estado_cotizacion === 'rechazado').length, [rows]);
 
@@ -118,12 +124,13 @@ export default function Cotizaciones({ linea, focusCotizacion, onFocusConsumed }
     return haystack.includes(searchTerm);
   };
 
-  const filteredRows = baseRows.filter(r =>
+  // Más reciente arriba: N° de cotización descendente.
+  const filteredRows = sortByNCotDesc(baseRows.filter(r =>
     (filters.mes === 'todos' || r.mes === filters.mes) &&
     (filters.cliente === 'todos' || r.cliente === filters.cliente) &&
     (filters.tipoIngreso === 'todos' || r.tipo_ingreso === filters.tipoIngreso) &&
     matchesSearch(r)
-  );
+  ), frozenNCot.current);
 
   function patchRow(id: number, patch: Partial<Cotizacion>) {
     setRows(prev => prev.map(r => r.id === id ? { ...r, ...patch } : r));
@@ -148,6 +155,8 @@ export default function Cotizaciones({ linea, focusCotizacion, onFocusConsumed }
         return next;
       });
     }
+    if (turningOn) frozenNCot.current[row.id] = Number(row.n_cot);
+    else delete frozenNCot.current[row.id];
     patchRow(row.id, { editing: turningOn });
   }
 
@@ -157,6 +166,7 @@ export default function Cotizaciones({ linea, focusCotizacion, onFocusConsumed }
 
     try {
       const updated = await updateCotizacion(row.id, payload);
+      delete frozenNCot.current[row.id];
       setRows(prev => prev.map(r => r.id === row.id ? { ...updated, editing: false } : r));
     } catch {
       alert('No se pudo guardar la cotización.');
@@ -220,10 +230,12 @@ export default function Cotizaciones({ linea, focusCotizacion, onFocusConsumed }
   return (
     <div>
       <h1 className="title-serif font-semibold" style={{ fontSize: 24, color: '#12192b' }}>
-        {view === 'rechazadas' ? 'Cotizaciones Rechazadas' : 'Cotizaciones'} — {LINEA_LABELS[linea]}
+        {view === 'rechazadas' && !searchAcrossAll ? 'Cotizaciones Rechazadas' : 'Cotizaciones'} — {LINEA_LABELS[linea]}
       </h1>
       <p className="mb-5" style={{ fontSize: 13.5, color: '#5b5f6b' }}>
-        {view === 'rechazadas'
+        {searchAcrossAll
+          ? 'Resultados de la búsqueda por número: cotizaciones abiertas y rechazadas juntas.'
+          : view === 'rechazadas'
           ? 'Cotizaciones rechazadas, guardadas aquí aparte del pipeline. Puedes reactivarlas en cualquier momento para que vuelvan a Pendientes.'
           : 'Pipeline de cotizaciones en revisión. Al aprobar una cotización, se mueve directamente a Eventos / Proyectos y sale de esta lista. Las rechazadas se guardan en la sección "Ver Rechazadas".'}
       </p>
