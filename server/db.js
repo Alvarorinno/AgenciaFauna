@@ -113,6 +113,11 @@ async function runInit() {
   await sql`ALTER TABLE cotizacion_grupos ADD COLUMN IF NOT EXISTS abono1 NUMERIC DEFAULT 0`;
   await sql`ALTER TABLE cotizacion_grupos ADD COLUMN IF NOT EXISTS abono2 NUMERIC DEFAULT 0`;
 
+  // Tipo de documento con que el proveedor cobra: 'factura' (la OC suma IVA 19%) o
+  // 'boleta_honorarios' (la OC descuenta la retención). Las filas existentes quedan
+  // como 'factura', que es como se calculaban hasta ahora.
+  await sql`ALTER TABLE cotizacion_grupos ADD COLUMN IF NOT EXISTS tipo_documento TEXT DEFAULT 'factura'`;
+
   // Revertido: estos 3 campos se probaron primero a nivel de ítem y se migraron a
   // nivel de grupo (arriba) antes de que hubiera datos reales cargados en producción.
   await sql`ALTER TABLE cotizacion_items DROP COLUMN IF EXISTS factura_proveedor`;

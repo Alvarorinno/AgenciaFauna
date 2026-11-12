@@ -27,12 +27,17 @@ export interface CotizacionItem {
 }
 
 // Grupo/partida de proveedor (ej. "ADHESIVO SERVICIO TÉCNICO") con sus ítems.
+// Documento con que cobra el proveedor: la OC suma IVA (factura) o descuenta la
+// retención (boleta de honorarios).
+export type TipoDocumento = 'factura' | 'boleta_honorarios';
+
 export interface CotizacionGrupo {
   id: number;
   cotizacion_id: number;
   nombre: string;
   proveedor: string;
   rut_proveedor: string;
+  tipo_documento?: TipoDocumento;
   orden: number;
   items: CotizacionItem[];
   subtotal_cliente: number;

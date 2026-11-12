@@ -63,14 +63,20 @@ function drawFirstPageHead(doc, d) {
   const cols = [
     { x: X0, w: 160, label: 'Proyecto:', value: d.proyecto },
     { x: 220, w: 160, label: 'Proveedor:', value: d.proveedor },
-    { x: 412, w: X1 - 412, label: 'RUT Proveedor:', value: d.rutProveedor }
+    { x: 412, w: X1 - 412, label: 'RUT Proveedor:', value: d.rutProveedor, extra: `Documento: ${d.documento}` }
   ];
   const top = y + 13;
   doc.font(OC.bold).fontSize(10.5);
-  const valH = Math.max(...cols.map(c => doc.heightOfString(c.value, { width: c.w })));
+  const EXTRA_H = 13; // línea secundaria bajo el valor (ej. tipo de documento)
+  const colH = c => doc.heightOfString(c.value, { width: c.w }) + (c.extra ? EXTRA_H : 0);
+  const valH = Math.max(...cols.map(colH));
   cols.forEach(c => {
     doc.font(OC.font).fontSize(8.5).fillColor(OC.sub).text(c.label, c.x, top, { width: c.w, lineBreak: false });
     doc.font(OC.bold).fontSize(10.5).fillColor(OC.ink).text(c.value, c.x, top + 14, { width: c.w });
+    if (c.extra) {
+      const ey = top + 14 + doc.heightOfString(c.value, { width: c.w }) + 2;
+      doc.font(OC.font).fontSize(8.5).fillColor(OC.sub).text(c.extra, c.x, ey, { width: c.w, lineBreak: false });
+    }
   });
   const rowH = 14 + valH;
   [205, 396].forEach(x => {
@@ -149,7 +155,7 @@ function drawTotals(doc, y, d) {
   const smallH = 28;
   const bigH = 42;
   const gap = 8;
-  if (y + smallH * 2 + gap * 2 + bigH > OC.bottom) {
+  if (y + smallH * d.totales.length + gap * d.totales.length + bigH > OC.bottom) {
     doc.addPage();
     y = OC.contentTop;
   }
@@ -163,7 +169,7 @@ function drawTotals(doc, y, d) {
   const limeX = OC.X1 - limeW;
   const outlineX = limeX - lw - 30;
 
-  [['TOTAL NETO', d.neto], ['IVA (19%)', d.iva]].forEach(([label, value]) => {
+  d.totales.forEach(([label, value]) => {
     pill(doc, outlineX, y, OC.X1 - outlineX, smallH, { stroke: OC.line });
     doc.font(OC.font).fontSize(8.5).fillColor(OC.ink);
     doc.text(label, outlineX + 22, capY(y, smallH, 8.5), { characterSpacing: 2.5, lineBreak: false });
@@ -185,7 +191,9 @@ function drawTotals(doc, y, d) {
 /**
  * @param doc PDFDocument creado con OC_DOC_OPTIONS (ya conectado a su destino)
  * @param d { empresa: {rut, direccion}, email, numeroOc, nCot, fecha, proyecto, proveedor, rutProveedor,
- *            subtitulo, rows: [{desc, cant, unit, sub}], neto, iva, total }
+ *            documento ('Factura' | 'Boleta de honorarios'), subtitulo,
+ *            rows: [{desc, cant, unit, sub}], totales: [[etiqueta, monto], …] (filas
+ *            sobre el total: neto/IVA o bruto/retención), total }
  *            (montos ya formateados como texto)
  */
 export function renderOrdenCompra(doc, d) {

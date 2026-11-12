@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useState } from 'react';
-import type { Cotizacion, CotizacionGrupo, CotizacionItem, Proveedor } from '../types';
+import type { Cotizacion, CotizacionGrupo, CotizacionItem, Proveedor, TipoDocumento } from '../types';
 import {
   createGrupo, updateGrupo, deleteGrupo,
   createItem, updateItem, deleteItem,
@@ -81,7 +81,7 @@ export default function CotizacionDetalle({ cotizacion, canEdit, onCotizacionUpd
 
   function startEditGrupo(g: CotizacionGrupo) {
     setEditingGrupoId(g.id);
-    setDraftGrupo({ nombre: g.nombre, proveedor: g.proveedor, rut_proveedor: g.rut_proveedor });
+    setDraftGrupo({ nombre: g.nombre, proveedor: g.proveedor, rut_proveedor: g.rut_proveedor, tipo_documento: g.tipo_documento ?? 'factura' });
   }
 
   // Al elegir una sugerencia del directorio, se completa el RUT automáticamente
@@ -322,6 +322,15 @@ export default function CotizacionDetalle({ cotizacion, canEdit, onCotizacionUpd
                             onBlur={() => setTimeout(() => setShowProveedorSuggest(false), 150)}
                             placeholder="Proveedor"
                           />
+                          <select
+                            style={{ ...inputStyle, marginTop: 4 }}
+                            value={draftGrupo.tipo_documento ?? 'factura'}
+                            onChange={e => setDraftGrupo(d => ({ ...d, tipo_documento: e.target.value as TipoDocumento }))}
+                            title="Documento con que cobra el proveedor: define cómo se calcula la OC"
+                          >
+                            <option value="factura">Factura (OC con IVA 19%)</option>
+                            <option value="boleta_honorarios">Boleta de honorarios (OC × 0,8475)</option>
+                          </select>
                           {showProveedorSuggest && proveedorSuggestions.length > 0 && (
                             <div style={{
                               position: 'absolute', top: '100%', left: 6, zIndex: 30, minWidth: 220, maxHeight: 190, overflowY: 'auto',
@@ -341,7 +350,16 @@ export default function CotizacionDetalle({ cotizacion, canEdit, onCotizacionUpd
                             </div>
                           )}
                         </>
-                      ) : g.proveedor}
+                      ) : (
+                        <>
+                          {g.proveedor}
+                          {g.proveedor && (
+                            <div style={{ fontSize: 11, fontWeight: 500, color: g.tipo_documento === 'boleta_honorarios' ? '#8a6a1f' : '#6b7280' }}>
+                              {g.tipo_documento === 'boleta_honorarios' ? 'Boleta de honorarios' : 'Factura'}
+                            </div>
+                          )}
+                        </>
+                      )}
                     </td>
                     <td style={{ ...detCellStyle, background: COSTO_BG }}>
                       {editingGrupoId === g.id ? (

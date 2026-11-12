@@ -64,6 +64,12 @@ const EJECUTIVA_POR_LINEA = {
 const CONDICIONES_DEFAULT = 'Forma de pago: 50% del total anticipado, 50% contra entrega.';
 const VALIDEZ_COTIZACION_DIAS = 30;
 
+// Tipo de documento del proveedor. Factura: la OC suma IVA (19%). Boleta de
+// honorarios: el monto del detalle es el bruto y se le descuenta la retención
+// (15,25% → se paga el 84,75% = bruto × 0,8475).
+const TIPOS_DOCUMENTO = ['factura', 'boleta_honorarios'];
+const FACTOR_BOLETA_HONORARIOS = 0.8475;
+
 // dd-mm-aaaa en hora de Chile (el servidor corre en UTC).
 function fmtFecha(date) {
   return new Date(date).toLocaleDateString('es-CL', { timeZone: 'America/Santiago' });
@@ -98,9 +104,10 @@ router.post('/grupos', requireEncargado, async (req, res) => {
   const [{ m }] = await sql`SELECT MAX(orden) as m FROM cotizacion_grupos WHERE cotizacion_id = ${cotizacionId}`;
   const orden = (m ?? -1) + 1;
 
+  const tipoDocumento = TIPOS_DOCUMENTO.includes(req.body.tipo_documento) ? req.body.tipo_documento : 'factura';
   const rows = await sql`
-    INSERT INTO cotizacion_grupos (cotizacion_id, nombre, proveedor, rut_proveedor, orden)
-    VALUES (${cotizacionId}, ${req.body.nombre ?? ''}, ${req.body.proveedor ?? ''}, ${req.body.rut_proveedor ?? ''}, ${orden})
+    INSERT INTO cotizacion_grupos (cotizacion_id, nombre, proveedor, rut_proveedor, orden, tipo_documento)
+    VALUES (${cotizacionId}, ${req.body.nombre ?? ''}, ${req.body.proveedor ?? ''}, ${req.body.rut_proveedor ?? ''}, ${orden}, ${tipoDocumento})
     RETURNING *
   `;
   res.status(201).json(withGrupoDerived(rows[0], []));
@@ -118,9 +125,12 @@ router.put('/grupos/:id', requireEncargado, async (req, res) => {
   // factura + abonos cubren todo el itemizado de este proveedor en la cotización
   // (no van por ítem). No afectan costo_cliente/costo_real, por eso no disparan
   // recomputeTotales.
-  const fields = ['nombre', 'proveedor', 'rut_proveedor', 'factura_proveedor', 'abono1', 'abono2'];
+  const fields = ['nombre', 'proveedor', 'rut_proveedor', 'factura_proveedor', 'abono1', 'abono2', 'tipo_documento'];
   const updates = {};
   for (const f of fields) if (req.body[f] !== undefined) updates[f] = req.body[f];
+  if (updates.tipo_documento !== undefined && !TIPOS_DOCUMENTO.includes(updates.tipo_documento)) {
+    return res.status(400).json({ error: 'Tipo de documento inválido (factura o boleta_honorarios)' });
+  }
   if (Object.keys(updates).length === 0) return res.status(400).json({ error: 'Sin campos para actualizar' });
 
   const keys = Object.keys(updates);
@@ -372,10 +382,27 @@ router.get('/grupos/:id/pdf-oc', async (req, res) => {
   res.setHeader('Content-Disposition', `attachment; filename="oc-${numeroOc}-${(grupo.proveedor || 'proveedor').replace(/[^a-z0-9]+/gi, '-')}.pdf"`);
   doc.pipe(res);
 
-  // Los precios de la OC son NETOS (costo del proveedor): el IVA (19%) se suma al
-  // final. El diseño vive en lib/ocPdf.js; acá solo se arman los datos.
-  const neto = items.reduce((acc, it) => acc + it.subtotal_costo, 0);
-  const iva = neto * 0.19;
+  // Los precios de la OC son el costo del proveedor. Según el documento con que cobra:
+  // factura → se suma IVA (19%); boleta de honorarios → el monto es bruto y se paga
+  // bruto × 0,8475 (se descuenta la retención). El diseño vive en lib/ocPdf.js;
+  // acá solo se arman los datos.
+  const bruto = items.reduce((acc, it) => acc + it.subtotal_costo, 0);
+  const esBoleta = grupo.tipo_documento === 'boleta_honorarios';
+  let filasTotales;
+  let totalPagar;
+  if (esBoleta) {
+    totalPagar = Math.round(bruto * FACTOR_BOLETA_HONORARIOS);
+    filasTotales = [
+      ['TOTAL BRUTO', fmtCLP(bruto)],
+      ['RETENCIÓN (15,25%)', `- ${fmtCLP(bruto - totalPagar)}`]
+    ];
+  } else {
+    totalPagar = bruto * 1.19;
+    filasTotales = [
+      ['TOTAL NETO', fmtCLP(bruto)],
+      ['IVA (19%)', fmtCLP(bruto * 0.19)]
+    ];
+  }
   renderOrdenCompra(doc, {
     empresa: { rut: COMPANY.rut, direccion: COMPANY.direccion },
     email: emailForLinea(cot?.linea_negocio),
@@ -392,9 +419,9 @@ router.get('/grupos/:id/pdf-oc', async (req, res) => {
       unit: fmtCLP(it.unitario_costo),
       sub: fmtCLP(it.subtotal_costo)
     })),
-    neto: fmtCLP(neto),
-    iva: fmtCLP(iva),
-    total: fmtCLP(neto + iva)
+    documento: esBoleta ? 'Boleta de honorarios' : 'Factura',
+    totales: filasTotales,
+    total: fmtCLP(totalPagar)
   });
 });
 

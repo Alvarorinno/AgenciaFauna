@@ -137,8 +137,8 @@ router.post('/:id/duplicate', async (req, res) => {
   const gruposOriginales = await sql`SELECT * FROM cotizacion_grupos WHERE cotizacion_id = ${id} ORDER BY orden, id`;
   for (const g of gruposOriginales) {
     const [nuevoGrupo] = await sql`
-      INSERT INTO cotizacion_grupos (cotizacion_id, nombre, proveedor, rut_proveedor, orden)
-      VALUES (${nueva.id}, ${g.nombre}, ${g.proveedor}, ${g.rut_proveedor}, ${g.orden})
+      INSERT INTO cotizacion_grupos (cotizacion_id, nombre, proveedor, rut_proveedor, orden, tipo_documento)
+      VALUES (${nueva.id}, ${g.nombre}, ${g.proveedor}, ${g.rut_proveedor}, ${g.orden}, ${g.tipo_documento ?? 'factura'})
       RETURNING *
     `;
     const itemsOriginales = await sql`SELECT * FROM cotizacion_items WHERE grupo_id = ${g.id} ORDER BY orden, id`;
